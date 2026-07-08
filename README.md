@@ -1,23 +1,38 @@
 # Apple Silicon AI Lab
 
-Public-safe Apple Silicon AI/ML experiments, local-first tooling notes, and synthetic benchmark scaffolds for original BeyondZeroLabs learning work.
+Public Apple Silicon AI/ML experiments, local-first tooling notes, and synthetic benchmark scaffolds from Beyond Zero Labs.
 
-This project is local-first by default. It is meant for lightweight notes, reproducible setup sketches, synthetic prompts, and benchmark templates that can be reviewed before any public release.
+## What This Is
 
-## Scope
+Apple Silicon AI Lab is a small public workspace for exploring AI/ML development patterns on Apple Silicon. It starts with reproducible notes, benchmark templates, and lightweight project structure before introducing runtime-specific code.
+
+The project is intentionally local-first: examples should be understandable without cloud infrastructure, paid services, or large model artifacts by default.
+
+## What Is Included
 
 - Apple Silicon AI/ML experiment notes
 - Local-first tooling observations
 - Synthetic benchmark scaffolds
 - Public-safe examples and documentation
-- Reproducible checklists for future approved runs
-
-## Public Safety
-
-This project must not include private data, legal content, secrets, local machine paths, private bridge traces, downloaded model artifacts, or copied upstream code without attribution.
-
-Model downloads are not enabled by default. Runtime installs, benchmark execution, API calls, and public publishing all require separate approval.
+- Reproducibility checklists for future approved runs
+- Repository safety and contribution guidelines
 
 ## Current Status
 
-Local scaffold only. No git repository has been initialized, no GitHub repository has been created, and no push has been made.
+Initial public scaffold is live. Runtime installs, model downloads, benchmark execution, and API calls are intentionally gated until the benchmark harness is finalized.
+
+## Roadmap
+
+- Expand synthetic benchmark templates
+- Add local setup notes for approved Apple Silicon tooling
+- Define benchmark result formats with invented sample data
+- Add runtime-specific adapters after explicit approval gates
+- Document reproducibility practices for local experiments
+
+## Safety Note
+
+This repository uses synthetic examples only. Please see [SECURITY.md](SECURITY.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for contribution and data-safety guidelines.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
