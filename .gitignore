@@ -17,3 +17,5 @@ venv/
 outputs/private/
 private_bridge_logs/
 private_case_materials/
+
+agent_bridge/
