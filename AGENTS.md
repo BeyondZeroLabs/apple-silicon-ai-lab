@@ -23,6 +23,17 @@ Apple Silicon AI Lab is a public Beyond Zero Labs repository for Apple Silicon A
 - Do not invent benchmark results.
 - Do not push publicly unless explicitly approved.
 
+## Local Pi Routing and Validation
+
+- The M5 Max is the local Pi control and approval node; worker tasks must have bounded scope and produce receipts and handoffs.
+- Default local Ollama coding model: `qwen2.5-coder:7b`.
+- `qwen2.5-coder:14b` requires explicit task-level approval with a recorded reason and expected benefit.
+- 30B models are blocked pending explicit future reassessment.
+- Preserve raw model output. Correctness-sensitive output must pass the validated-code-output workflow before acceptance.
+- Strip at most one complete outer Markdown code fence. Reject nested or malformed fences and prose outside the fence.
+- Require syntax parsing, AST safety checks, and task-appropriate functional tests.
+- Reject unsafe or failed output; never silently repair it.
+
 ## Commit Gate
 
 Before any commit or push, check for secret-shaped strings, `.env` files, key files, private paths, private project references, unexpected binaries, and non-synthetic content.
