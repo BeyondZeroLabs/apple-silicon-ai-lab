@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+import stat
 import sys
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
@@ -103,12 +104,37 @@ def safe_source_url(value: object) -> bool:
     )
 
 
-def load_unique(path: Path) -> tuple[dict, str]:
+def approved_registry_path(path: Path) -> Path:
+    """Return the one approved registry path without following caller-selected links."""
     try:
-        raw = path.read_text(encoding="utf-8")
-    except OSError:
-        fail("READ")
+        root = ROOT.resolve(strict=True)
+        approved = DEFAULT_REGISTRY.resolve(strict=True)
+        lexical = path.absolute()
+        relative = lexical.relative_to(root)
+    except (OSError, ValueError):
+        fail("REGISTRY_PATH")
 
+    cursor = root
+    for part in relative.parts:
+        cursor /= part
+        try:
+            if cursor.is_symlink():
+                fail("REGISTRY_PATH")
+        except OSError:
+            fail("REGISTRY_PATH")
+
+    try:
+        resolved = lexical.resolve(strict=True)
+        mode = resolved.stat().st_mode
+    except OSError:
+        fail("REGISTRY_PATH")
+    if resolved != approved or not stat.S_ISREG(mode):
+        fail("REGISTRY_PATH")
+    return resolved
+
+
+def parse_unique(raw: str) -> dict:
+    """Parse JSON while rejecting duplicate object keys."""
     def pairs(items: list[tuple[str, object]]) -> dict:
         result = {}
         for key, value in items:
@@ -123,7 +149,16 @@ def load_unique(path: Path) -> tuple[dict, str]:
         fail("JSON")
     if not isinstance(value, dict):
         fail("ROOT")
-    return value, raw
+    return value
+
+
+def load_unique(path: Path) -> tuple[dict, str]:
+    path = approved_registry_path(path)
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        fail("READ")
+    return parse_unique(raw), raw
 
 
 def validate_entry(entry: object) -> None:

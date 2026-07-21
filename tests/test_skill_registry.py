@@ -169,14 +169,28 @@ class RegistryTests(unittest.TestCase):
         raw = REGISTRY.read_text(encoding="utf-8").replace(
             '  "schema_version": 1,', '  "schema_version": 1,\n  "schema_version": 1,'
         )
+        with self.assertRaisesRegex(validator.Invalid, "^DUPLICATE_KEY$"):
+            validator.parse_unique(raw)
+
+    def test_cli_rejects_registry_outside_approved_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "registry.json"
-            path.write_text(raw, encoding="utf-8")
+            path.write_text(REGISTRY.read_text(encoding="utf-8"), encoding="utf-8")
             result = subprocess.run(
                 ["python3", str(VALIDATOR), str(path)], capture_output=True, text=True, check=False
             )
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stderr.strip(), "SKILL_REGISTRY_INVALID:DUPLICATE_KEY")
+        self.assertEqual(result.stderr.strip(), "SKILL_REGISTRY_INVALID:REGISTRY_PATH")
+
+    def test_cli_rejects_symlink_to_approved_registry(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "registry.json"
+            path.symlink_to(REGISTRY)
+            result = subprocess.run(
+                ["python3", str(VALIDATOR), str(path)], capture_output=True, text=True, check=False
+            )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stderr.strip(), "SKILL_REGISTRY_INVALID:REGISTRY_PATH")
 
     def test_cli_emits_stable_success(self) -> None:
         result = subprocess.run(
