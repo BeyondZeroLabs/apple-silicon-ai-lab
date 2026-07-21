@@ -1,0 +1,91 @@
+schema_version: "1.0"
+id: bz-long-running-goal-contract
+status: PROPOSED_NOT_ACTIVE
+authority: "~/TomorrowAI_OS/runtime/agent_bridge/"
+goal:
+  required:
+    - goal_id
+    - title
+    - human_owner
+    - repository
+    - specification_ref
+    - acceptance_tests
+    - risk_class
+    - data_classification
+    - state
+    - budget
+    - stop_conditions
+    - rollback_ref
+  states:
+    - DRAFT
+    - APPROVED
+    - LEASED
+    - RUNNING
+    - CHECKPOINTED
+    - VALIDATING
+    - REVIEW_REQUIRED
+    - PAUSED
+    - BLOCKED
+    - QUARANTINED
+    - ROLLING_BACK
+    - COMPLETED
+    - FAILED
+  human_only_transitions:
+    - DRAFT_to_APPROVED
+    - REVIEW_REQUIRED_to_COMPLETED_for_material_change
+    - approve_merge
+    - approve_model_or_policy_promotion
+    - accept_risk_exception
+    - accept_incident
+lease:
+  maximum_active_per_repository: 1
+  fields: [repository, goal_id, branch, worktree, coordinator, machine, issued_at, expires_at, heartbeat_at]
+  requirements: [atomic_update, renewable_ttl, fail_closed, stale_recovery_tested, explicit_release]
+  preferred_coordinator: mac_studio_m4_max
+  failover_coordinator: macbook_pro_m4_pro
+  failover_conditions: [studio_lease_absent, explicit_human_grant, trusted_network, ac_power, renewable_heartbeat]
+execution:
+  harnesses_are_replaceable: true
+  approved_harness_candidates: [pi, grok_build, codex, hermes]
+  runtime_surface: herdr
+  durable_authority_is_not_runtime_surface: true
+  isolation: [one_goal_one_branch_one_worktree, machine_local_credentials, machine_local_runtime_state]
+  checkpoint_fields: [checkpoint_id, goal_id, task_id, state_hash, artifact_refs, receipt_refs, created_at, resume_instruction]
+budget:
+  required: [wall_clock_seconds, maximum_attempts, maximum_concurrency]
+  optional: [maximum_input_tokens, maximum_output_tokens, maximum_cost_usd, maximum_energy_proxy]
+  exhaustion_behavior: PAUSED
+validation:
+  required: [deterministic_tests, security_and_secret_scan, independent_review, rollback_artifact]
+  model_may_not_self_promote: true
+self_healing:
+  automatic_allowed:
+    - retry_transient_failure_with_backoff
+    - resume_from_verified_checkpoint
+    - stop_stalled_or_unhealthy_run
+    - quarantine_candidate
+    - restore_last_approved_configuration
+    - append_sanitized_receipt
+    - open_bounded_issue
+    - create_draft_remediation_pull_request
+  human_required:
+    - merge
+    - permission_expansion
+    - network_exposure_expansion
+    - model_prompt_skill_tool_or_policy_promotion
+  prohibited:
+    - self_approval
+    - automatic_merge
+    - unbounded_retry
+    - concurrent_repository_coordinators
+    - unauthenticated_model_endpoint
+    - write_to_unapproved_external_drive
+stop_conditions:
+  mandatory:
+    - objective_met
+    - budget_exhausted
+    - repeated_failure_signature
+    - no_measurable_improvement
+    - security_boundary_reached
+    - lease_missing_or_stale
+    - human_stop

@@ -1,0 +1,112 @@
+schema_version: "1.0"
+id: bz-model-onboarding-contract
+status: PROPOSED_NOT_ACTIVE
+authority: "~/TomorrowAI_OS/runtime/agent_bridge/"
+storage:
+  approved_model_store: PENDING_STORAGE_ACCEPTANCE
+  preferred_candidate: /Volumes/LaCie
+  existing_ai_models_volume: PRESERVATION_READ_ONLY_NOT_A_MODEL_STORE
+  quarantine: MACHINE_LOCAL_INTERNAL_SSD_UNTIL_STORAGE_ACCEPTANCE
+  runtime_state: machine_local_only
+sources:
+  allowed: [hugging_face_hub, approved_developer_repository, approved_ollama_manifest]
+  requirements:
+    - immutable_source_revision
+    - artifact_sha256
+    - developer_and_quantizer_identity
+    - license_and_use_restrictions
+    - model_card_and_known_limitations
+states:
+  - DISCOVERED
+  - QUARANTINED
+  - PROVENANCE_VERIFIED
+  - COMPATIBILITY_VERIFIED
+  - BENCHMARKED
+  - CANARY
+  - APPROVED
+  - ACTIVE
+  - DEPRECATED
+  - ROLLED_BACK
+required_metadata:
+  - catalog_id
+  - source_repo
+  - source_revision
+  - artifact_path
+  - artifact_sha256
+  - license
+  - total_parameters
+  - active_parameters_if_moe
+  - format
+  - quantization
+  - serving_engine
+  - serving_engine_version
+  - context_window_tested
+  - chat_template
+  - tool_calling_result
+  - structured_output_result
+  - peak_memory_gb
+  - minimum_free_memory_gb
+  - benchmark_suite_revision
+  - benchmark_result
+  - approver
+harness_access:
+  required_harnesses: [pi, grok_build]
+  required_execution_nodes: [mbp_m5_max, mac_studio_m4_max, mbp_m4_pro, mac_mini_m4]
+  conditional_nodes: [mbp_intel_2019]
+  meanings:
+    cataloged: model_artifact_or_endpoint_is_registered
+    connectable: harness_can_authenticate_and_receive_a_text_response
+    agent_compatible: required_tool_calls_file_edits_structured_output_and_stop_behavior_pass
+    fleet_approved: per_machine_route_and_regression_matrix_passes
+  minimum_grok_build_checks:
+    - grok_inspect_discovers_model
+    - grok_models_lists_model
+    - tui_model_selection
+    - headless_text_smoke
+    - structured_output
+    - tool_calling
+    - bounded_file_edit
+    - deterministic_test_execution
+    - context_and_stop_behavior
+    - failure_and_timeout_behavior
+  minimum_pi_checks:
+    - provider_registration
+    - model_listing_or_explicit_resolution
+    - interactive_text_smoke
+    - headless_text_smoke
+    - structured_output
+    - tool_calling
+    - bounded_file_edit
+    - deterministic_test_execution
+    - context_and_stop_behavior
+    - failure_and_timeout_behavior
+  rule: PASSING_ONE_HARNESS_DOES_NOT_IMPLY_PASSING_THE_OTHER
+adapters:
+  llama_cpp:
+    base_url: http://127.0.0.1:8080/v1
+    bind: 127.0.0.1
+    required_checks: [health, model_identity, structured_json, tool_contract, unload]
+  ollama:
+    base_url: http://127.0.0.1:11434
+    bind: 127.0.0.1
+    required_checks: [version, tags, model_identity, structured_json, unload]
+policy:
+  current_default: qwen2.5-coder:7b
+  current_approval_tier: qwen2.5-coder:14b
+  unknown_models: DENY
+  models_at_or_above_30b_total: BLOCK
+  mutable_latest_aliases: PROHIBITED
+  automatic_promotion: PROHIBITED
+promotion:
+  requires:
+    - all_metadata_present
+    - public_safe_or_synthetic_benchmark
+    - no_regression_on_required_tasks
+    - independent_review
+    - human_approval
+    - rollback_entry
+    - pi_agent_compatibility_pass
+    - grok_build_agent_compatibility_pass
+rollback:
+  automatic_action: route_to_last_approved_model
+  preserve: [failed_run_receipt, sanitized_trace, model_hash, benchmark_revision]
