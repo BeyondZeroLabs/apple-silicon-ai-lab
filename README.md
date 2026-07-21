@@ -23,6 +23,8 @@ Initial public scaffold is live. Runtime installs, model downloads, benchmark ex
 
 The first bounded Software Factory implementation is the offline [M5 policy cockpit](docs/software-factory/m5-policy-cockpit.md). It validates public-safe approval requests and can create non-overwriting local receipts without installing services, contacting model providers, or touching external storage.
 
+Phase 2 adds a design-only [skill supply-chain gate](docs/software-factory/skill-supply-chain.md). Its empty registry and deterministic validator define quarantine, review, cross-harness testing, human promotion, monitoring, and rollback requirements without importing or enabling third-party skills.
+
 ## Roadmap
 
 - Expand synthetic benchmark templates

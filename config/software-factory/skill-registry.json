@@ -1,0 +1,82 @@
+{
+  "authority": {
+    "human_promotion_required": true,
+    "skills_may_grant_authority": false
+  },
+  "data_boundary": {
+    "allowed": [
+      "PUBLIC",
+      "SYNTHETIC"
+    ],
+    "prohibited": [
+      "CASE_BRAIN",
+      "CREDENTIALS",
+      "LEGAL_PRIVILEGED",
+      "PII",
+      "PRIVATE_STORAGE"
+    ]
+  },
+  "entries": [],
+  "harnesses": {
+    "codex": {
+      "deployment_enabled": false,
+      "mode": "EXPLICIT_INVOCATION_DESIGN_ONLY"
+    },
+    "cursor": {
+      "deployment_enabled": false,
+      "mode": "READ_ONLY_REVIEW_DESIGN_ONLY"
+    },
+    "grok_build": {
+      "deployment_enabled": false,
+      "mode": "HASH_CHECKED_ADAPTER_DESIGN_ONLY"
+    },
+    "hermes": {
+      "deployment_enabled": false,
+      "mode": "ISOLATED_PROFILE_DESIGN_ONLY"
+    },
+    "openclaw": {
+      "deployment_enabled": false,
+      "mode": "ALLOWLIST_DESIGN_ONLY"
+    },
+    "pi": {
+      "deployment_enabled": false,
+      "mode": "EXPLICIT_INVOCATION_DESIGN_ONLY"
+    }
+  },
+  "lifecycle": [
+    "DISCOVERED",
+    "QUARANTINED",
+    "STATIC_REVIEWED",
+    "SANDBOX_TESTED",
+    "HUMAN_APPROVED",
+    "STAGED_READ_ONLY",
+    "ENABLED_PER_HARNESS",
+    "MONITORED",
+    "REVOKED"
+  ],
+  "prohibited_defaults": [
+    "AUTOMATIC_INSTALL_OR_UPDATE",
+    "CREDENTIAL_ACCESS",
+    "HOOK_OR_PLUGIN_EXECUTION",
+    "MCP_ENABLEMENT",
+    "PERMISSION_EXPANSION",
+    "PROTECTED_STORAGE_ACCESS",
+    "SELF_APPROVAL",
+    "SKILL_MANAGED_MERGE_OR_PROMOTION",
+    "UNREVIEWED_NETWORK_ACCESS"
+  ],
+  "promotion_gates": [
+    "IMMUTABLE_PROVENANCE",
+    "LICENSE_REVIEW",
+    "STATIC_SECURITY_REVIEW",
+    "PRIVACY_REVIEW",
+    "ISOLATED_SANDBOX_TEST",
+    "CROSS_HARNESS_PARITY",
+    "ROLLBACK_REHEARSAL",
+    "INDEPENDENT_REVIEW",
+    "M5_HUMAN_PROMOTION"
+  ],
+  "registry_id": "bz-public-skill-registry",
+  "schema_version": 1,
+  "status": "DESIGN_ONLY_NO_SKILLS_APPROVED"
+}
