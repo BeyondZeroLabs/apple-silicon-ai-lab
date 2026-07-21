@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "request_id": "public-doc-pilot-001",
+  "action": "approve_goal",
+  "repository": "BeyondZeroLabs/apple-silicon-ai-lab",
+  "data_classification": "PUBLIC",
+  "risk_class": "LOW",
+  "human_owner_role": "m5_policy_owner",
+  "human_confirmation": true,
+  "candidate_ref": "synthetic-documentation-change",
+  "rollback_ref": "documented-git-revert-plan",
+  "evidence": {
+    "contracts_accepted": true,
+    "deterministic_tests_passed": true,
+    "privacy_scan_passed": true,
+    "independent_review_passed": true,
+    "rollback_documented": true,
+    "scope_is_public_safe": true
+  }
+}
