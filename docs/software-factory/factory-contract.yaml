@@ -1,0 +1,84 @@
+schema_version: "1.0"
+id: bz-software-factory-contract
+status: PROPOSED_NOT_ACTIVE
+authority:
+  operational: "~/TomorrowAI_OS/runtime/agent_bridge/"
+  source_code: git_and_approved_pull_requests
+  knowledge:
+    authoritative: human_approved_repo_docs_and_agent_bridge
+    derived: [openwiki, obsidian, dashboards, trace_views]
+principles:
+  - intent_before_execution
+  - one_task_one_branch_one_worktree
+  - least_privilege
+  - independent_validation
+  - append_only_evidence
+  - reversible_rollout
+  - named_human_accountability
+  - dual_harness_model_access
+roles:
+  coordinator:
+    preferred: FirstMate_or_Pi
+    may: [plan, route, create_bounded_tasks, collect_evidence]
+    may_not: [merge, promote_model, expand_permissions]
+  runtime:
+    preferred: Herdr
+    rollback: cmux
+  workers:
+    allowed_when_approved: [Pi, Grok_Build, local_model_worker, cloud_worker]
+    isolation: git_worktree_and_named_session
+    required_execution_node_harnesses: [Pi, Grok_Build]
+    required_execution_nodes: [mbp_m5_max, mac_studio_m4_max, mbp_m4_pro, mac_mini_m4]
+    intel_support: conditional_on_runtime_and_security_acceptance
+    mobile_devices: attach_to_mac_hosted_sessions_only
+  reviewer:
+    independence: fresh_context_and_no_write_credentials
+    output: structured_findings_or_explicit_clean_result
+    may_not: [commit, push, merge, change_policy]
+  human_owner:
+    required_for: [merge, promotion, permission_expansion, incident_acceptance]
+execution_gates:
+  preflight:
+    - intent_and_acceptance_criteria_present
+    - risk_class_assigned
+    - secrets_and_data_classification_assigned
+    - worktree_and_branch_unique
+    - model_and_tool_policy_resolved
+    - selected_model_passed_current_harness_matrix
+  validation:
+    - deterministic_tests
+    - security_and_secret_scan
+    - trace_schema_valid
+    - independent_review_for_material_changes
+  release:
+    - draft_pull_request
+    - named_human_approval
+    - rollback_artifact_present
+self_healing:
+  automatic_allowed:
+    - stop_unhealthy_run
+    - quarantine_candidate
+    - restore_last_approved_configuration
+    - append_sanitized_receipt
+    - open_bounded_issue
+    - create_draft_remediation_pull_request
+    - replay_regression_suite_in_sandbox
+  human_approval_required:
+    - merge
+    - model_or_policy_promotion
+    - permission_or_network_expansion
+    - authoritative_knowledge_change
+  prohibited:
+    - self_approve
+    - automatic_merge
+    - production_policy_rewrite_without_pull_request
+    - unreviewed_model_alias_update
+    - unauthenticated_lan_model_endpoint
+rollout:
+  stages: [offline_replay, single_machine_canary, bounded_multi_machine_canary, approved_default]
+  rollback_trigger:
+    - deterministic_test_regression
+    - security_gate_failure
+    - trace_redaction_failure
+    - latency_or_error_budget_breach
+    - human_stop

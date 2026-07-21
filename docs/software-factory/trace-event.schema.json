@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beyondzerolabs.example/schemas/factory-trace-event-1.0.json",
+  "title": "BZ Software Factory Trace Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "run_id",
+    "task_id",
+    "timestamp",
+    "event_type",
+    "truth_classification",
+    "data_classification",
+    "machine_role",
+    "harness",
+    "policy_revision",
+    "status"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "event_id": {"type": "string", "minLength": 8},
+    "run_id": {"type": "string", "minLength": 8},
+    "task_id": {"type": "string", "minLength": 3},
+    "parent_event_id": {"type": ["string", "null"]},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "event_type": {
+      "enum": ["run_started", "model_selected", "tool_called", "artifact_written", "validation_completed", "review_completed", "run_stopped", "run_completed", "rollback", "quarantine"]
+    },
+    "truth_classification": {"enum": ["ACTUAL", "ESTIMATED", "FORECAST", "SIMULATED"]},
+    "data_classification": {"enum": ["PUBLIC", "INTERNAL", "PRIVATE", "RESTRICTED"]},
+    "machine_role": {"type": "string"},
+    "harness": {"type": "string"},
+    "model": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {"type": "string"},
+        "artifact_sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+        "source_revision": {"type": "string"},
+        "serving_engine": {"type": "string"},
+        "context_window": {"type": "integer", "minimum": 1}
+      }
+    },
+    "branch": {"type": ["string", "null"]},
+    "worktree": {"type": ["string", "null"]},
+    "policy_revision": {"type": "string"},
+    "prompt_revision": {"type": ["string", "null"]},
+    "tool_name": {"type": ["string", "null"]},
+    "artifact_hashes": {"type": "array", "items": {"type": "string"}},
+    "metrics": {
+      "type": "object",
+      "additionalProperties": {"type": ["number", "integer", "string", "boolean", "null"]}
+    },
+    "validator_results": {"type": "array", "items": {"type": "string"}},
+    "status": {"enum": ["STARTED", "PASSED", "FAILED", "STOPPED", "QUARANTINED", "ROLLED_BACK"]},
+    "human_verdict": {"enum": ["UNREVIEWED", "APPROVED", "REJECTED", "NEEDS_WORK", "NOT_APPLICABLE"]},
+    "redaction_applied": {"type": "boolean"},
+    "receipt_path": {"type": ["string", "null"]}
+  }
+}
