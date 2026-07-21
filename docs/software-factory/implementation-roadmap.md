@@ -37,7 +37,7 @@ Build a local-first, multi-machine agentic engineering factory that can use fron
 4. **Model plane — Studio with M5 evaluation:** pinned llama.cpp/MLX/Ollama/provider routes. Pi is the broad provider reference; Grok Build is the peer coding/research harness.
 5. **Observation plane — Mini:** external health observation, alerts, technology radar and lease watchdog. Studio also watches Mini heartbeat to avoid silent observer failure.
 6. **Evidence plane — `agent_bridge`:** append-only sanitized events, goal records, checkpoints, evaluations, receipts and approvals.
-7. **Knowledge plane — reviewed Git docs and private Obsidian projection:** derived summaries never override the evidence or policy planes.
+7. **Knowledge plane — reviewed Git docs and private Obsidian projection:** derived summaries never override the evidence or policy planes. GBrain is a quarantined candidate retrieval layer only; it is not authoritative memory and is not yet installed.
 
 ## Dual-harness access requirement
 
@@ -110,6 +110,7 @@ Only the human owner can move a goal into `APPROVED`, accept a material risk exc
 - Validate Grok Build TUI model selection, headless mode, Agent Dashboard discovery and ACP availability without treating the dashboard as the authoritative control plane.
 - Exercise branch/worktree creation, deterministic tests, fresh-context review, draft PR and human rejection/approval without automatic merge.
 - Test Herdr detach/reattach, native session restore and cmux rollback.
+- Evaluate GBrain only in an attended, loopback-bound, read-only profile over a disposable public/synthetic corpus. Do not run its autonomous installer, load its skill pack, enable write tools/background jobs, provide credentials, or import any private Obsidian, communication, legal/case or external-drive content.
 
 ### Phase 3 — Mini infrastructure pilot
 
@@ -118,6 +119,7 @@ Only the human owner can move a goal into `APPROVED`, accept a material risk exc
 - Keep Hermes as an isolated evaluation profile, not a second unrestricted scheduler.
 - Deploy read-only observability, goal/lease watchdog and daily technology radar with strict resource limits.
 - Verify that stopping or exhausting OSIRIS cannot stop the watchdog.
+- If the M5 GBrain evaluation passes its separate runtime, privacy, poisoning, backup/restore and rollback gates, canary it under a dedicated non-admin Mini service account. Keep it isolated from OSIRIS and the lease watchdog; expose only approved authenticated retrieval, and keep writes, ingestion, cron/dream cycles and skill optimization disabled until separately promoted.
 
 ### Phase 4 — Studio acceptance and coordinator canary
 

@@ -29,6 +29,9 @@ Retrieved 2026-07-21. These sources are discovery inputs only; no external skill
 - Agent Skills anatomy: https://github.com/addyosmani/agent-skills/blob/main/docs/skill-anatomy.md
 - Agent Skills cross-agent installation notes: https://github.com/addyosmani/agent-skills/blob/main/agents/README.md
 - Context engineering example: https://github.com/addyosmani/agent-skills/blob/main/skills/context-engineering/SKILL.md
+- GBrain repository: https://github.com/garrytan/gbrain
+- GBrain product/architecture overview: https://gbrain.homes/
+- GBrain security policy: https://github.com/garrytan/gbrain/blob/master/SECURITY.md
 
 ## X practitioner signals
 
@@ -49,3 +52,4 @@ Retrieved 2026-07-21. These sources are discovery inputs only; no external skill
 - Ollama serves a local API at `127.0.0.1:11434`; llama.cpp exposes OpenAI-compatible routes, monitoring, continuous batching, and structured JSON. BZ should normalize both behind one adapter contract.
 - Hugging Face downloads must be pinned to a commit revision. Production routing must also record artifact hashes because a repository revision can contain multiple files and quantizations.
 - External skill collections demonstrate reusable lifecycle guidance across harnesses, but their installation mechanisms and mutable upstream content are not authority. BeyondZeroLabs must use immutable provenance, local quarantine, deny-only capabilities, per-harness validation, explicit human promotion and rollback before any candidate is enabled.
+- GBrain supports a local PGLite database and MCP clients including Codex and Cursor, while its full setup can also load skills, request API credentials, ingest personal communications and notes, and schedule autonomous background work. It therefore enters as a disabled memory candidate with separate runtime/data and skill-supply-chain gates; the public/synthetic pilot must not use its autonomous installer or ingest protected material.

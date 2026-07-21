@@ -84,6 +84,33 @@ class RegistryTests(unittest.TestCase):
         value["harnesses"]["pi"]["deployment_enabled"] = True
         self.assert_invalid("HARNESS_ENABLED", value)
 
+    def test_gbrain_is_present_but_quarantined(self) -> None:
+        candidate = self.base["memory_candidates"][0]
+        self.assertEqual(candidate["id"], "gbrain")
+        self.assertEqual(candidate["state"], "QUARANTINED")
+        self.assertFalse(candidate["deployment_enabled"])
+        self.assertFalse(candidate["runtime_accepted"])
+        self.assertFalse(candidate["skill_pack_accepted"])
+        self.validate(self.base)
+
+    def test_gbrain_cannot_be_enabled_or_accept_skills(self) -> None:
+        for field in ("deployment_enabled", "runtime_accepted", "skill_pack_accepted"):
+            with self.subTest(field=field):
+                value = copy.deepcopy(self.base)
+                value["memory_candidates"][0][field] = True
+                expected = "MEMORY_DEPLOYMENT" if field == "deployment_enabled" else "MEMORY_ACCEPTANCE"
+                self.assert_invalid(expected, value)
+
+    def test_gbrain_data_boundary_cannot_be_weakened(self) -> None:
+        value = copy.deepcopy(self.base)
+        value["memory_candidates"][0]["prohibited_data"].remove("CASE_BRAIN")
+        self.assert_invalid("MEMORY_PROHIBITED_DATA", value)
+
+    def test_gbrain_autonomous_features_remain_disabled(self) -> None:
+        value = copy.deepcopy(self.base)
+        value["memory_candidates"][0]["disabled_features"].remove("WRITE_TOOLS")
+        self.assert_invalid("MEMORY_DISABLED_FEATURES", value)
+
     def test_enabled_entry_fails(self) -> None:
         value = copy.deepcopy(self.base)
         entry = valid_entry()

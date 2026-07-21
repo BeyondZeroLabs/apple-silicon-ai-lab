@@ -54,6 +54,42 @@
     "MONITORED",
     "REVOKED"
   ],
+  "memory_candidates": [
+    {
+      "access_mode": "READ_ONLY",
+      "allowed_data": [
+        "PUBLIC",
+        "SYNTHETIC"
+      ],
+      "deployment_enabled": false,
+      "disabled_features": [
+        "AUTONOMOUS_INSTALLER",
+        "BACKGROUND_JOBS",
+        "BULK_IMPORT",
+        "CRON_DREAM_CYCLE",
+        "EXTERNAL_INTEGRATIONS",
+        "SKILL_OPTIMIZER",
+        "SKILL_PACK",
+        "WRITE_TOOLS"
+      ],
+      "id": "gbrain",
+      "network_mode": "LOOPBACK_ONLY",
+      "pilot_host": "M5_ATTENDED",
+      "prohibited_data": [
+        "CASE_BRAIN",
+        "CREDENTIALS",
+        "LEGAL_PRIVILEGED",
+        "PII",
+        "PRIVATE_STORAGE"
+      ],
+      "runtime_accepted": false,
+      "skill_pack_accepted": false,
+      "source_repository": "https://github.com/garrytan/gbrain",
+      "source_revision": "UNPINNED",
+      "standing_host_candidate": "MAC_MINI_ISOLATED",
+      "state": "QUARANTINED"
+    }
+  ],
   "prohibited_defaults": [
     "AUTOMATIC_INSTALL_OR_UPDATE",
     "CREDENTIAL_ACCESS",

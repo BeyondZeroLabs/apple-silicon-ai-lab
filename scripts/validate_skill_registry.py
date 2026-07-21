@@ -17,7 +17,8 @@ DEFAULT_REGISTRY = ROOT / "config/software-factory/skill-registry.json"
 
 TOP_KEYS = {
     "authority", "data_boundary", "entries", "harnesses", "lifecycle",
-    "prohibited_defaults", "promotion_gates", "registry_id", "schema_version", "status",
+    "memory_candidates", "prohibited_defaults", "promotion_gates", "registry_id",
+    "schema_version", "status",
 }
 HARNESS_KEYS = {"codex", "cursor", "grok_build", "hermes", "openclaw", "pi"}
 ENTRY_KEYS = {
@@ -28,6 +29,12 @@ SOURCE_KEYS = {"artifact_sha256", "repository", "revision"}
 EVIDENCE_KEYS = {
     "cross_harness_parity", "human_approval", "independent_review", "privacy_review",
     "rollback_rehearsal", "sandbox_test", "static_security_review",
+}
+MEMORY_KEYS = {
+    "access_mode", "allowed_data", "deployment_enabled", "disabled_features", "id",
+    "network_mode", "pilot_host", "prohibited_data", "runtime_accepted",
+    "skill_pack_accepted", "source_repository", "source_revision",
+    "standing_host_candidate", "state",
 }
 LIFECYCLE = [
     "DISCOVERED", "QUARANTINED", "STATIC_REVIEWED", "SANDBOX_TESTED",
@@ -42,6 +49,10 @@ GATES = {
     "IMMUTABLE_PROVENANCE", "LICENSE_REVIEW", "STATIC_SECURITY_REVIEW", "PRIVACY_REVIEW",
     "ISOLATED_SANDBOX_TEST", "CROSS_HARNESS_PARITY", "ROLLBACK_REHEARSAL",
     "INDEPENDENT_REVIEW", "M5_HUMAN_PROMOTION",
+}
+GBRAIN_DISABLED = {
+    "AUTONOMOUS_INSTALLER", "BACKGROUND_JOBS", "BULK_IMPORT", "CRON_DREAM_CYCLE",
+    "EXTERNAL_INTEGRATIONS", "SKILL_OPTIMIZER", "SKILL_PACK", "WRITE_TOOLS",
 }
 SHA40 = re.compile(r"[0-9a-f]{40}\Z")
 SHA64 = re.compile(r"[0-9a-f]{64}\Z")
@@ -160,6 +171,30 @@ def validate_entry(entry: object) -> None:
         fail("PREMATURE_EVIDENCE")
 
 
+def validate_memory_candidate(candidate: object) -> None:
+    candidate = exact_keys(candidate, MEMORY_KEYS, "MEMORY_SCHEMA")
+    if candidate["id"] != "gbrain" or candidate["state"] != "QUARANTINED":
+        fail("MEMORY_IDENTITY")
+    if candidate["deployment_enabled"] is not False:
+        fail("MEMORY_DEPLOYMENT")
+    if candidate["runtime_accepted"] is not False or candidate["skill_pack_accepted"] is not False:
+        fail("MEMORY_ACCEPTANCE")
+    if candidate["source_repository"] != "https://github.com/garrytan/gbrain":
+        fail("MEMORY_SOURCE")
+    if candidate["source_revision"] != "UNPINNED":
+        fail("MEMORY_REVISION")
+    if candidate["access_mode"] != "READ_ONLY" or candidate["network_mode"] != "LOOPBACK_ONLY":
+        fail("MEMORY_ACCESS")
+    if candidate["pilot_host"] != "M5_ATTENDED" or candidate["standing_host_candidate"] != "MAC_MINI_ISOLATED":
+        fail("MEMORY_HOST")
+    if candidate["allowed_data"] != ["PUBLIC", "SYNTHETIC"]:
+        fail("MEMORY_ALLOWED_DATA")
+    if candidate["prohibited_data"] != ["CASE_BRAIN", "CREDENTIALS", "LEGAL_PRIVILEGED", "PII", "PRIVATE_STORAGE"]:
+        fail("MEMORY_PROHIBITED_DATA")
+    if set(string_list(candidate["disabled_features"], "MEMORY_DISABLED_FEATURES")) != GBRAIN_DISABLED:
+        fail("MEMORY_DISABLED_FEATURES")
+
+
 def validate(value: dict, raw: str) -> None:
     exact_keys(value, TOP_KEYS, "TOP_SCHEMA")
     if value["schema_version"] != 1 or value["registry_id"] != "bz-public-skill-registry":
@@ -195,6 +230,10 @@ def validate(value: dict, raw: str) -> None:
     ids = [entry["id"] for entry in value["entries"]]
     if len(ids) != len(set(ids)):
         fail("DUPLICATE_ENTRY")
+
+    if not isinstance(value["memory_candidates"], list) or len(value["memory_candidates"]) != 1:
+        fail("MEMORY_CANDIDATES")
+    validate_memory_candidate(value["memory_candidates"][0])
 
     canonical = json.dumps(value, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
     if raw != canonical:

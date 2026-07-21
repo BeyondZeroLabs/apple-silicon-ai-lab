@@ -33,6 +33,17 @@ Any failed review, provenance drift, hash change, permission change, or behavior
 
 The canonical behavior contract remains harness-neutral. A skill must not silently gain capabilities when translated to another harness.
 
+## GBrain integration boundary
+
+GBrain is included as a `QUARANTINED_MEMORY_CANDIDATE`, not as an installed runtime or approved skill source. Its retrieval, citation, gap-analysis and local PGLite options could improve durable context for Pi, Grok Build, Codex, Cursor, OpenClaw and Hermes, but its runtime and bundled skills cross two separate trust boundaries:
+
+1. GBrain runtime/MCP is a memory service and must pass a dedicated data, authentication, storage, tenancy, backup, deletion, poisoning and prompt-injection review.
+2. Every bundled or generated GBrain skill must independently pass this skill supply-chain lifecycle. Runtime acceptance never bulk-approves a skill pack.
+
+The first evaluation is M5-attended, read-only, loopback-only and limited to a disposable public/synthetic corpus. The autonomous installer, agent-provided setup instructions, external integrations, write-capable MCP tools, background jobs, cron/dream cycle, skill optimizer and bulk note import remain disabled. No credential, private Obsidian vault, external drive, `OSIRIS_CORE`, personal communication, meeting record or protected legal/case material may enter the pilot.
+
+If the pilot passes, the proposed standing location is an isolated non-admin service on the Mac mini, separate from its lease watchdog and OSIRIS/OpenClaw process. Clients attach through an authenticated approved surface. GBrain remains a derived retrieval layer: `agent_bridge` retains operational authority, Git retains reviewed repository truth, and human-reviewed knowledge remains authoritative. Revocation must stop the service, remove every harness adapter and restore the last verified snapshot without deleting source material.
+
 ## Initial capability candidates
 
 The first candidates should be narrow, public-safe workflow aids: specification drafting, bounded planning, context-boundary checks, test-driven changes, deterministic verification, independent security review, independent code review, and draft handoff. No third-party content is vendored by this phase.
