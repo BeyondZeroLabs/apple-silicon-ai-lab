@@ -192,6 +192,17 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stderr.strip(), "SKILL_REGISTRY_INVALID:REGISTRY_PATH")
 
+    def test_atomic_reader_rejects_replacement_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "config" / "software-factory" / "skill-registry.json"
+            target.parent.mkdir(parents=True)
+            protected = root / "protected.json"
+            protected.write_text(REGISTRY.read_text(encoding="utf-8"), encoding="utf-8")
+            target.symlink_to(protected)
+            with self.assertRaisesRegex(validator.Invalid, "^REGISTRY_PATH$"):
+                validator.read_registry_at(root)
+
     def test_cli_emits_stable_success(self) -> None:
         result = subprocess.run(
             ["python3", str(VALIDATOR), str(REGISTRY)], capture_output=True, text=True, check=False

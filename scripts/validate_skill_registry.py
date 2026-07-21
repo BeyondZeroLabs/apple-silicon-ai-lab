@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import stat
 import sys
@@ -105,32 +106,45 @@ def safe_source_url(value: object) -> bool:
 
 
 def approved_registry_path(path: Path) -> Path:
-    """Return the one approved registry path without following caller-selected links."""
-    try:
-        root = ROOT.resolve(strict=True)
-        approved = DEFAULT_REGISTRY.resolve(strict=True)
-        lexical = path.absolute()
-        relative = lexical.relative_to(root)
-    except (OSError, ValueError):
+    """Reject every caller-selected path except the canonical registry location."""
+    if path.absolute() != DEFAULT_REGISTRY:
         fail("REGISTRY_PATH")
+    return path
 
-    cursor = root
-    for part in relative.parts:
-        cursor /= part
-        try:
-            if cursor.is_symlink():
+
+def read_registry_at(root: Path) -> str:
+    """Atomically open the registry through no-follow directory descriptors."""
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    file_flags = os.O_RDONLY | os.O_NOFOLLOW
+    descriptors: list[int] = []
+    try:
+        root_fd = os.open(root, directory_flags)
+        descriptors.append(root_fd)
+        config_fd = os.open("config", directory_flags, dir_fd=root_fd)
+        descriptors.append(config_fd)
+        factory_fd = os.open("software-factory", directory_flags, dir_fd=config_fd)
+        descriptors.append(factory_fd)
+        registry_fd = os.open("skill-registry.json", file_flags, dir_fd=factory_fd)
+        descriptors.append(registry_fd)
+
+        for descriptor in descriptors:
+            metadata = os.fstat(descriptor)
+            if metadata.st_uid != os.getuid():
                 fail("REGISTRY_PATH")
-        except OSError:
+        if not stat.S_ISREG(os.fstat(registry_fd).st_mode):
             fail("REGISTRY_PATH")
 
-    try:
-        resolved = lexical.resolve(strict=True)
-        mode = resolved.stat().st_mode
-    except OSError:
+        with os.fdopen(registry_fd, "r", encoding="utf-8") as handle:
+            descriptors.pop()
+            return handle.read()
+    except (OSError, UnicodeError):
         fail("REGISTRY_PATH")
-    if resolved != approved or not stat.S_ISREG(mode):
-        fail("REGISTRY_PATH")
-    return resolved
+    finally:
+        for descriptor in reversed(descriptors):
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
 
 
 def parse_unique(raw: str) -> dict:
@@ -153,11 +167,8 @@ def parse_unique(raw: str) -> dict:
 
 
 def load_unique(path: Path) -> tuple[dict, str]:
-    path = approved_registry_path(path)
-    try:
-        raw = path.read_text(encoding="utf-8")
-    except OSError:
-        fail("READ")
+    approved_registry_path(path)
+    raw = read_registry_at(ROOT)
     return parse_unique(raw), raw
 
 
