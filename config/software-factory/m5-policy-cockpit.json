@@ -37,5 +37,5 @@
     "credential_export"
   ],
   "receipt_root": ".factory-state/m5-policy-cockpit/receipts",
-  "receipt_mode": "append_only_create_exclusive"
+  "receipt_mode": "create_exclusive_non_authoritative"
 }

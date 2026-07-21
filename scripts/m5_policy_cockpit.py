@@ -2,7 +2,7 @@
 """Offline policy gate for the M5 Software Factory cockpit.
 
 The program evaluates public-safe human decision envelopes and optionally
-creates append-only, sanitized receipts inside the repository's ignored
+creates non-overwriting, sanitized receipts inside the repository's ignored
 `.factory-state` directory. It deliberately has no network, model, service,
 credential, GitHub, or external-storage integration.
 """
@@ -24,6 +24,22 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = REPO_ROOT / "config/software-factory/m5-policy-cockpit.json"
 
+POLICY_KEYS = {
+    "schema_version",
+    "id",
+    "status",
+    "policy_revision",
+    "machine_role",
+    "mode",
+    "allowed_repositories",
+    "allowed_data_classifications",
+    "allowed_actions",
+    "required_evidence",
+    "prohibited_capabilities",
+    "receipt_root",
+    "receipt_mode",
+}
+
 REQUEST_KEYS = {
     "schema_version",
     "request_id",
@@ -38,8 +54,65 @@ REQUEST_KEYS = {
     "evidence",
 }
 
+RECEIPT_KEYS = {
+    "schema_version",
+    "receipt_type",
+    "request_id",
+    "request_sha256",
+    "recorded_at",
+    "machine_role",
+    "policy_revision",
+    "action",
+    "repository",
+    "data_classification",
+    "risk_class",
+    "candidate_ref",
+    "rollback_ref",
+    "decision",
+    "executes_action",
+}
+
+EXPECTED_POLICY = {
+    "schema_version": "1.0",
+    "id": "bz-m5-policy-cockpit-public-pilot",
+    "status": "ACTIVE_INTERACTIVE_PILOT",
+    "policy_revision": "094f5a852c90be00c19e5915ae0fd8b45a22826c",
+    "machine_role": "mbp_m5_max_policy_cockpit",
+    "mode": "interactive_only",
+    "allowed_repositories": ["BeyondZeroLabs/apple-silicon-ai-lab"],
+    "allowed_data_classifications": ["PUBLIC"],
+    "allowed_actions": [
+        "approve_goal",
+        "record_independent_review",
+        "authorize_merge",
+        "authorize_rollback",
+    ],
+    "required_evidence": [
+        "contracts_accepted",
+        "deterministic_tests_passed",
+        "privacy_scan_passed",
+        "independent_review_passed",
+        "rollback_documented",
+        "scope_is_public_safe",
+    ],
+    "prohibited_capabilities": [
+        "automatic_merge",
+        "coordinator_lease",
+        "fleet_service_install",
+        "model_download",
+        "model_or_policy_promotion",
+        "network_service_bind",
+        "protected_storage_access",
+        "external_drive_write",
+        "credential_export",
+    ],
+    "receipt_root": ".factory-state/m5-policy-cockpit/receipts",
+    "receipt_mode": "create_exclusive_non_authoritative",
+}
+
 SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{7,79}$")
 SAFE_REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{2,159}$")
+SHA256 = re.compile(r"^[a-f0-9]{64}$")
 SENSITIVE_PATTERNS = (
     re.compile("/" + "Users" + "/", re.IGNORECASE),
     re.compile("file:" + "//", re.IGNORECASE),
@@ -51,6 +124,25 @@ SENSITIVE_PATTERNS = (
 
 class CockpitError(ValueError):
     """A fail-closed policy or integrity error."""
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise CockpitError("duplicate JSON field")
+        value[key] = item
+    return value
+
+
+def _strict_json_loads(raw: str) -> dict[str, Any]:
+    try:
+        value = json.loads(raw, object_pairs_hook=_unique_object)
+    except json.JSONDecodeError as exc:
+        raise CockpitError("invalid JSON") from exc
+    if not isinstance(value, dict):
+        raise CockpitError("JSON root must be an object")
+    return value
 
 
 def _inside_repo(path: Path) -> Path:
@@ -73,23 +165,17 @@ def _read_public_json(path: Path) -> tuple[dict[str, Any], str]:
     for pattern in SENSITIVE_PATTERNS:
         if pattern.search(raw):
             raise CockpitError("request contains content prohibited in the public lane")
-    try:
-        value = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise CockpitError("invalid JSON") from exc
-    if not isinstance(value, dict):
-        raise CockpitError("JSON root must be an object")
+    value = _strict_json_loads(raw)
     return value, hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
     policy, _ = _read_public_json(path)
-    if policy.get("schema_version") != "1.0":
-        raise CockpitError("unsupported policy schema")
-    if policy.get("mode") != "interactive_only":
-        raise CockpitError("policy must remain interactive-only")
-    if policy.get("status") != "ACTIVE_INTERACTIVE_PILOT":
-        raise CockpitError("policy is not active for the bounded pilot")
+    if set(policy) != POLICY_KEYS:
+        raise CockpitError("policy fields do not match the pinned schema")
+    for key, expected in EXPECTED_POLICY.items():
+        if policy.get(key) != expected:
+            raise CockpitError("policy does not match the pinned public pilot")
     return policy
 
 
@@ -165,6 +251,120 @@ def _receipt_root(policy: dict[str, Any]) -> Path:
     return root
 
 
+def _receipt_parts(policy: dict[str, Any]) -> tuple[str, ...]:
+    relative = Path(str(policy.get("receipt_root", "")))
+    if (
+        relative.is_absolute()
+        or not relative.parts
+        or relative.parts[0] != ".factory-state"
+        or any(part in {"", ".", ".."} for part in relative.parts)
+    ):
+        raise CockpitError("receipt root must remain under .factory-state")
+    return relative.parts
+
+
+def _secure_directory_fd(policy: dict[str, Any], *, create: bool) -> int | None:
+    """Open the receipt directory without following path-component symlinks."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+    current = os.open(REPO_ROOT, flags)
+    try:
+        for part in _receipt_parts(policy):
+            if create:
+                try:
+                    os.mkdir(part, mode=0o700, dir_fd=current)
+                except FileExistsError:
+                    pass
+            try:
+                child = os.open(part, flags, dir_fd=current)
+            except FileNotFoundError:
+                if create:
+                    raise
+                os.close(current)
+                return None
+            info = os.fstat(child)
+            if (
+                not stat.S_ISDIR(info.st_mode)
+                or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) & 0o077
+            ):
+                os.close(child)
+                raise CockpitError("receipt directory ownership or permissions are unsafe")
+            os.close(current)
+            current = child
+        return current
+    except Exception:
+        try:
+            os.close(current)
+        except OSError:
+            pass
+        raise
+
+
+def _read_receipt_at(directory_fd: int, filename: str) -> dict[str, Any]:
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
+    descriptor = os.open(filename, flags, dir_fd=directory_fd)
+    try:
+        info = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or info.st_uid != os.getuid()
+            or info.st_nlink != 1
+            or stat.S_IMODE(info.st_mode) & 0o077
+        ):
+            raise CockpitError("receipt ownership, type, links, or permissions are unsafe")
+        with os.fdopen(descriptor, "rb", closefd=False) as handle:
+            payload = handle.read(65537)
+        if len(payload) > 65536:
+            raise CockpitError("receipt exceeds the size limit")
+        raw = payload.decode("utf-8")
+        for pattern in SENSITIVE_PATTERNS:
+            if pattern.search(raw):
+                raise CockpitError("receipt contains prohibited content")
+        return _strict_json_loads(raw)
+    finally:
+        os.close(descriptor)
+
+
+def _validate_receipt(
+    value: dict[str, Any], filename: str, policy: dict[str, Any]
+) -> None:
+    if set(value) != RECEIPT_KEYS:
+        raise CockpitError("receipt fields do not match the pinned schema")
+    request_id = value.get("request_id")
+    checks = (
+        value.get("schema_version") == "1.0",
+        value.get("receipt_type") == "m5_policy_cockpit_decision",
+        isinstance(request_id, str) and SAFE_ID.fullmatch(request_id) is not None,
+        filename == f"{request_id}.json",
+        isinstance(value.get("request_sha256"), str)
+        and SHA256.fullmatch(value["request_sha256"]) is not None,
+        value.get("machine_role") == policy.get("machine_role"),
+        value.get("policy_revision") == policy.get("policy_revision"),
+        value.get("action") in policy.get("allowed_actions", []),
+        value.get("repository") in policy.get("allowed_repositories", []),
+        value.get("data_classification")
+        in policy.get("allowed_data_classifications", []),
+        value.get("risk_class") in {"LOW", "MEDIUM", "HIGH"},
+        isinstance(value.get("candidate_ref"), str)
+        and SAFE_REF.fullmatch(value["candidate_ref"]) is not None,
+        isinstance(value.get("rollback_ref"), str)
+        and SAFE_REF.fullmatch(value["rollback_ref"]) is not None,
+        value.get("decision") == "APPROVED_FOR_HUMAN_ACTION",
+        value.get("executes_action") is False,
+    )
+    if not all(checks):
+        raise CockpitError("receipt does not match the pinned security contract")
+    recorded_at = value.get("recorded_at")
+    if not isinstance(recorded_at, str) or not recorded_at.endswith("Z"):
+        raise CockpitError("receipt timestamp is invalid")
+    try:
+        parsed = datetime.fromisoformat(recorded_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise CockpitError("receipt timestamp is invalid") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() != timezone.utc.utcoffset(parsed):
+        raise CockpitError("receipt timestamp is invalid")
+
+
 def record_receipt(
     request: dict[str, Any],
     request_sha256: str,
@@ -177,9 +377,10 @@ def record_receipt(
         raise CockpitError("live human confirmation flag is required to record")
     if decision["decision"] != "APPROVED_FOR_HUMAN_ACTION":
         raise CockpitError("denied requests cannot be recorded as approvals")
+    if not SHA256.fullmatch(request_sha256):
+        raise CockpitError("request digest is invalid")
 
     root = _receipt_root(policy)
-    root.mkdir(mode=0o700, parents=True, exist_ok=True)
     request_id = decision["request_id"]
     destination = root / f"{request_id}.json"
     receipt = {
@@ -200,44 +401,46 @@ def record_receipt(
         "executes_action": False,
     }
     payload = (json.dumps(receipt, indent=2, sort_keys=True) + "\n").encode("utf-8")
-    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
+    directory_fd = _secure_directory_fd(policy, create=True)
+    assert directory_fd is not None
     try:
-        descriptor = os.open(destination, flags, 0o600)
-    except FileExistsError as exc:
-        raise CockpitError("append-only receipt already exists") from exc
-    with os.fdopen(descriptor, "wb") as handle:
-        handle.write(payload)
-        handle.flush()
-        os.fsync(handle.fileno())
+        try:
+            descriptor = os.open(
+                destination.name, flags, 0o600, dir_fd=directory_fd
+            )
+        except FileExistsError as exc:
+            raise CockpitError("create-exclusive receipt already exists") from exc
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
     return destination, hashlib.sha256(payload).hexdigest()
 
 
 def verify_receipts(policy: dict[str, Any]) -> dict[str, Any]:
-    root = _receipt_root(policy)
-    if not root.exists():
+    _receipt_root(policy)
+    directory_fd = _secure_directory_fd(policy, create=False)
+    if directory_fd is None:
         return {"receipt_count": 0, "status": "PASS"}
-    if root.is_symlink() or not root.is_dir():
-        raise CockpitError("receipt root integrity failure")
-    count = 0
-    for path in sorted(root.iterdir()):
-        if path.is_symlink() or not path.is_file() or path.suffix != ".json":
-            raise CockpitError("unexpected receipt entry")
-        if stat.S_IMODE(path.stat().st_mode) & 0o077:
-            raise CockpitError("receipt permissions are too broad")
-        value = json.loads(path.read_text(encoding="utf-8"))
-        if value.get("receipt_type") != "m5_policy_cockpit_decision":
-            raise CockpitError("unexpected receipt type")
-        if value.get("policy_revision") != policy.get("policy_revision"):
-            raise CockpitError("receipt policy revision mismatch")
-        if value.get("executes_action") is not False:
-            raise CockpitError("receipt claims execution authority")
-        count += 1
-    return {"receipt_count": count, "status": "PASS"}
+    try:
+        count = 0
+        for filename in sorted(os.listdir(directory_fd)):
+            if not filename.endswith(".json") or "/" in filename:
+                raise CockpitError("unexpected receipt entry")
+            value = _read_receipt_at(directory_fd, filename)
+            _validate_receipt(value, filename, policy)
+            count += 1
+        return {"receipt_count": count, "status": "PASS"}
+    finally:
+        os.close(directory_fd)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
     commands = parser.add_subparsers(dest="command", required=True)
     check = commands.add_parser("check")
     check.add_argument("request", type=Path)
@@ -255,7 +458,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        policy = load_policy(args.policy)
+        policy = load_policy()
         if args.command == "verify-receipts":
             print(json.dumps(verify_receipts(policy), sort_keys=True))
             return 0
@@ -285,8 +488,14 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
         return 0
-    except (CockpitError, OSError, json.JSONDecodeError) as exc:
+    except CockpitError as exc:
         print(f"M5_POLICY_COCKPIT_FAIL: {exc}", file=sys.stderr)
+        return 2
+    except (OSError, UnicodeError):
+        print(
+            "M5_POLICY_COCKPIT_FAIL: filesystem or encoding operation failed",
+            file=sys.stderr,
+        )
         return 2
 
 

@@ -14,7 +14,7 @@ This phase activates an offline policy gate on the M5 without activating the fle
 - A versioned M5 role policy for one public-safe repository.
 - A standard-library CLI that evaluates explicit human approval envelopes.
 - Fail-closed gates for public classification, repository allowlisting, evidence completeness and human confirmation.
-- Optional append-only receipts stored under ignored `.factory-state/` with create-exclusive writes and owner-only file permissions.
+- Optional create-exclusive receipts stored under ignored `.factory-state/` with owner-only file and directory permissions.
 - Deterministic unit tests and a synthetic example request.
 
 An approved result means only `APPROVED_FOR_HUMAN_ACTION`. The CLI never executes a merge, rollback, model action or permission change.
@@ -52,7 +52,7 @@ python3 scripts/m5_policy_cockpit.py record \
   --human-confirm
 ```
 
-The separate flag makes receipt creation an explicit operator action rather than an implication of request content. The same request ID cannot be recorded twice. Receipts are ignored by Git and remain non-authoritative pilot evidence; the merged contracts and the designated operational authority retain precedence.
+The separate flag makes receipt creation an explicit operator action rather than an implication of request content. It records operator intent but does not authenticate a human identity. The same request ID cannot be recorded twice. Receipts are ignored by Git and remain non-authoritative pilot evidence; create-exclusive files are not cryptographically tamper-evident or an authoritative append-only log. The merged contracts and the designated operational authority retain precedence. Pattern filtering is defense in depth and does not replace classification or human review.
 
 ## Rollback
 

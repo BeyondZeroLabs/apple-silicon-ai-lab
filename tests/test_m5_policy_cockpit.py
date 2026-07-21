@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
+import os
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest import mock
 
@@ -93,7 +96,7 @@ class PolicyCockpitTests(unittest.TestCase):
         finally:
             path.unlink(missing_ok=True)
 
-    def test_append_only_receipt_refuses_overwrite(self) -> None:
+    def test_create_exclusive_receipt_refuses_overwrite(self) -> None:
         request = valid_request()
         decision = COCKPIT.evaluate(request, self.policy)
         with tempfile.TemporaryDirectory(dir=ROOT / ".factory-state") as directory:
@@ -108,6 +111,142 @@ class PolicyCockpitTests(unittest.TestCase):
                     request, "a" * 64, decision, policy, human_confirmed=True
                 )
             self.assertEqual(COCKPIT.verify_receipts(policy)["receipt_count"], 1)
+
+    def test_policy_rejects_missing_unknown_and_weakened_fields(self) -> None:
+        variants = []
+        missing = dict(self.policy)
+        missing.pop("prohibited_capabilities")
+        variants.append(missing)
+        unknown = dict(self.policy, override=True)
+        variants.append(unknown)
+        weakened = dict(self.policy, prohibited_capabilities=[])
+        variants.append(weakened)
+        for index, value in enumerate(variants):
+            path = ROOT / f"config/software-factory/test-policy-{index}.json"
+            try:
+                path.write_text(json.dumps(value), encoding="utf-8")
+                with self.assertRaises(COCKPIT.CockpitError):
+                    COCKPIT.load_policy(path)
+            finally:
+                path.unlink(missing_ok=True)
+
+    def test_duplicate_policy_field_is_rejected(self) -> None:
+        path = ROOT / "config/software-factory/test-duplicate-policy.json"
+        raw = json.dumps(self.policy)
+        raw = raw[:-1] + ', "mode": "interactive_only"}'
+        try:
+            path.write_text(raw, encoding="utf-8")
+            with self.assertRaises(COCKPIT.CockpitError):
+                COCKPIT.load_policy(path)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_broad_receipt_directory_permissions_are_rejected(self) -> None:
+        request = valid_request()
+        decision = COCKPIT.evaluate(request, self.policy)
+        with tempfile.TemporaryDirectory(dir=ROOT / ".factory-state") as directory:
+            root = Path(directory) / "receipts"
+            root.mkdir(mode=0o700)
+            root.chmod(0o755)
+            policy = dict(self.policy, receipt_root=str(root.relative_to(ROOT)))
+            with self.assertRaises(COCKPIT.CockpitError):
+                COCKPIT.record_receipt(
+                    request, "a" * 64, decision, policy, human_confirmed=True
+                )
+
+    def test_intermediate_receipt_symlink_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT / ".factory-state") as directory:
+            parent = Path(directory)
+            outside = parent / "outside"
+            outside.mkdir(mode=0o700)
+            link = parent / "link"
+            link.symlink_to(outside, target_is_directory=True)
+            policy = dict(
+                self.policy,
+                receipt_root=str((link / "receipts").relative_to(ROOT)),
+            )
+            with self.assertRaises((COCKPIT.CockpitError, OSError)):
+                COCKPIT.verify_receipts(policy)
+
+    def test_modified_receipt_fields_and_filename_are_rejected(self) -> None:
+        request = valid_request()
+        decision = COCKPIT.evaluate(request, self.policy)
+        with tempfile.TemporaryDirectory(dir=ROOT / ".factory-state") as directory:
+            root = Path(directory) / "receipts"
+            policy = dict(self.policy, receipt_root=str(root.relative_to(ROOT)))
+            receipt, _ = COCKPIT.record_receipt(
+                request, "a" * 64, decision, policy, human_confirmed=True
+            )
+            original = json.loads(receipt.read_text(encoding="utf-8"))
+            altered = dict(original, decision="DENIED")
+            receipt.write_text(json.dumps(altered), encoding="utf-8")
+            receipt.chmod(0o600)
+            with self.assertRaises(COCKPIT.CockpitError):
+                COCKPIT.verify_receipts(policy)
+            receipt.write_text(json.dumps(original), encoding="utf-8")
+            receipt.chmod(0o600)
+            renamed = receipt.with_name("different-request.json")
+            receipt.rename(renamed)
+            with self.assertRaises(COCKPIT.CockpitError):
+                COCKPIT.verify_receipts(policy)
+
+    def test_receipt_with_broad_file_permissions_is_rejected(self) -> None:
+        request = valid_request()
+        decision = COCKPIT.evaluate(request, self.policy)
+        with tempfile.TemporaryDirectory(dir=ROOT / ".factory-state") as directory:
+            root = Path(directory) / "receipts"
+            policy = dict(self.policy, receipt_root=str(root.relative_to(ROOT)))
+            receipt, _ = COCKPIT.record_receipt(
+                request, "a" * 64, decision, policy, human_confirmed=True
+            )
+            receipt.chmod(0o644)
+            with self.assertRaises(COCKPIT.CockpitError):
+                COCKPIT.verify_receipts(policy)
+
+    def test_directory_replacement_cannot_redirect_receipt_write(self) -> None:
+        request = valid_request()
+        decision = COCKPIT.evaluate(request, self.policy)
+        with tempfile.TemporaryDirectory(dir=ROOT / ".factory-state") as directory:
+            parent = Path(directory)
+            receipts = parent / "receipts"
+            receipts.mkdir(mode=0o700)
+            moved = parent / "receipts-opened"
+            outside = parent / "outside"
+            outside.mkdir(mode=0o700)
+            policy = dict(self.policy, receipt_root=str(receipts.relative_to(ROOT)))
+            real_open = os.open
+            replaced = False
+
+            def racing_open(path, flags, mode=0o777, *, dir_fd=None):
+                nonlocal replaced
+                if (
+                    not replaced
+                    and isinstance(path, str)
+                    and path.endswith(".json")
+                    and dir_fd is not None
+                ):
+                    receipts.rename(moved)
+                    receipts.symlink_to(outside, target_is_directory=True)
+                    replaced = True
+                return real_open(path, flags, mode, dir_fd=dir_fd)
+
+            with mock.patch.object(COCKPIT.os, "open", side_effect=racing_open):
+                COCKPIT.record_receipt(
+                    request, "a" * 64, decision, policy, human_confirmed=True
+                )
+            self.assertTrue((moved / f'{request["request_id"]}.json').is_file())
+            self.assertEqual(list(outside.iterdir()), [])
+
+    def test_raw_oserror_is_sanitized(self) -> None:
+        stderr = io.StringIO()
+        with mock.patch.object(
+            COCKPIT, "load_policy", side_effect=OSError("/private/sensitive/path")
+        ):
+            with redirect_stderr(stderr):
+                status = COCKPIT.main(["verify-receipts"])
+        self.assertEqual(status, 2)
+        self.assertIn("filesystem or encoding operation failed", stderr.getvalue())
+        self.assertNotIn("/private/sensitive/path", stderr.getvalue())
 
     def test_receipt_requires_live_human_confirmation_flag(self) -> None:
         request = valid_request()
