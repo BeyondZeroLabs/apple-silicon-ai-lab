@@ -19,3 +19,4 @@ private_bridge_logs/
 private_case_materials/
 
 agent_bridge/
+.factory-state/

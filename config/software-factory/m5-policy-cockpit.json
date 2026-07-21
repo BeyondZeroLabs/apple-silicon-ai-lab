@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "id": "bz-m5-policy-cockpit-public-pilot",
+  "status": "ACTIVE_INTERACTIVE_PILOT",
+  "policy_revision": "094f5a852c90be00c19e5915ae0fd8b45a22826c",
+  "machine_role": "mbp_m5_max_policy_cockpit",
+  "mode": "interactive_only",
+  "allowed_repositories": [
+    "BeyondZeroLabs/apple-silicon-ai-lab"
+  ],
+  "allowed_data_classifications": [
+    "PUBLIC"
+  ],
+  "allowed_actions": [
+    "approve_goal",
+    "record_independent_review",
+    "authorize_merge",
+    "authorize_rollback"
+  ],
+  "required_evidence": [
+    "contracts_accepted",
+    "deterministic_tests_passed",
+    "privacy_scan_passed",
+    "independent_review_passed",
+    "rollback_documented",
+    "scope_is_public_safe"
+  ],
+  "prohibited_capabilities": [
+    "automatic_merge",
+    "coordinator_lease",
+    "fleet_service_install",
+    "model_download",
+    "model_or_policy_promotion",
+    "network_service_bind",
+    "protected_storage_access",
+    "external_drive_write",
+    "credential_export"
+  ],
+  "receipt_root": ".factory-state/m5-policy-cockpit/receipts",
+  "receipt_mode": "append_only_create_exclusive"
+}

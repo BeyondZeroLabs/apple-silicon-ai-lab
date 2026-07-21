@@ -21,6 +21,8 @@ The project is intentionally local-first: examples should be understandable with
 
 Initial public scaffold is live. Runtime installs, model downloads, benchmark execution, and API calls are intentionally gated until the benchmark harness is finalized.
 
+The first bounded Software Factory implementation is the offline [M5 policy cockpit](docs/software-factory/m5-policy-cockpit.md). It validates public-safe approval requests and can create append-only local receipts without installing services, contacting model providers, or touching external storage.
+
 ## Roadmap
 
 - Expand synthetic benchmark templates
