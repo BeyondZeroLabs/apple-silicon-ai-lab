@@ -5,3 +5,7 @@ Scripts belong here only after they are reviewed for public safety. Do not add s
 ## M5 policy cockpit
 
 `m5_policy_cockpit.py` is an offline policy gate for the interactive M5 pilot. `validate_m5_policy_cockpit.sh` runs its standard-library test suite and validates the synthetic example request. Neither script starts a service or performs a protected action.
+
+## Skill supply-chain gate
+
+`validate_skill_registry.py` validates the canonical design-only registry with Python's standard library. `validate_skill_supply_chain.sh` runs the validator and its negative security tests. Neither script downloads, installs, imports, or enables a skill.

@@ -1,0 +1,118 @@
+{
+  "authority": {
+    "human_promotion_required": true,
+    "skills_may_grant_authority": false
+  },
+  "data_boundary": {
+    "allowed": [
+      "PUBLIC",
+      "SYNTHETIC"
+    ],
+    "prohibited": [
+      "CASE_BRAIN",
+      "CREDENTIALS",
+      "LEGAL_PRIVILEGED",
+      "PII",
+      "PRIVATE_STORAGE"
+    ]
+  },
+  "entries": [],
+  "harnesses": {
+    "codex": {
+      "deployment_enabled": false,
+      "mode": "EXPLICIT_INVOCATION_DESIGN_ONLY"
+    },
+    "cursor": {
+      "deployment_enabled": false,
+      "mode": "READ_ONLY_REVIEW_DESIGN_ONLY"
+    },
+    "grok_build": {
+      "deployment_enabled": false,
+      "mode": "HASH_CHECKED_ADAPTER_DESIGN_ONLY"
+    },
+    "hermes": {
+      "deployment_enabled": false,
+      "mode": "ISOLATED_PROFILE_DESIGN_ONLY"
+    },
+    "openclaw": {
+      "deployment_enabled": false,
+      "mode": "ALLOWLIST_DESIGN_ONLY"
+    },
+    "pi": {
+      "deployment_enabled": false,
+      "mode": "EXPLICIT_INVOCATION_DESIGN_ONLY"
+    }
+  },
+  "lifecycle": [
+    "DISCOVERED",
+    "QUARANTINED",
+    "STATIC_REVIEWED",
+    "SANDBOX_TESTED",
+    "HUMAN_APPROVED",
+    "STAGED_READ_ONLY",
+    "ENABLED_PER_HARNESS",
+    "MONITORED",
+    "REVOKED"
+  ],
+  "memory_candidates": [
+    {
+      "access_mode": "READ_ONLY",
+      "allowed_data": [
+        "PUBLIC",
+        "SYNTHETIC"
+      ],
+      "deployment_enabled": false,
+      "disabled_features": [
+        "AUTONOMOUS_INSTALLER",
+        "BACKGROUND_JOBS",
+        "BULK_IMPORT",
+        "CRON_DREAM_CYCLE",
+        "EXTERNAL_INTEGRATIONS",
+        "SKILL_OPTIMIZER",
+        "SKILL_PACK",
+        "WRITE_TOOLS"
+      ],
+      "id": "gbrain",
+      "network_mode": "LOOPBACK_ONLY",
+      "pilot_host": "M5_ATTENDED",
+      "prohibited_data": [
+        "CASE_BRAIN",
+        "CREDENTIALS",
+        "LEGAL_PRIVILEGED",
+        "PII",
+        "PRIVATE_STORAGE"
+      ],
+      "runtime_accepted": false,
+      "skill_pack_accepted": false,
+      "source_repository": "https://github.com/garrytan/gbrain",
+      "source_revision": "UNPINNED",
+      "standing_host_candidate": "MAC_MINI_ISOLATED",
+      "state": "QUARANTINED"
+    }
+  ],
+  "prohibited_defaults": [
+    "AUTOMATIC_INSTALL_OR_UPDATE",
+    "CREDENTIAL_ACCESS",
+    "HOOK_OR_PLUGIN_EXECUTION",
+    "MCP_ENABLEMENT",
+    "PERMISSION_EXPANSION",
+    "PROTECTED_STORAGE_ACCESS",
+    "SELF_APPROVAL",
+    "SKILL_MANAGED_MERGE_OR_PROMOTION",
+    "UNREVIEWED_NETWORK_ACCESS"
+  ],
+  "promotion_gates": [
+    "IMMUTABLE_PROVENANCE",
+    "LICENSE_REVIEW",
+    "STATIC_SECURITY_REVIEW",
+    "PRIVACY_REVIEW",
+    "ISOLATED_SANDBOX_TEST",
+    "CROSS_HARNESS_PARITY",
+    "ROLLBACK_REHEARSAL",
+    "INDEPENDENT_REVIEW",
+    "M5_HUMAN_PROMOTION"
+  ],
+  "registry_id": "bz-public-skill-registry",
+  "schema_version": 1,
+  "status": "DESIGN_ONLY_NO_SKILLS_APPROVED"
+}
