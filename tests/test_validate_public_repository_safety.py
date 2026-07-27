@@ -6,6 +6,7 @@ import io
 import os
 import subprocess
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -66,6 +67,45 @@ class PublicRepositorySafetyTests(unittest.TestCase):
             for path in VALIDATOR.PROTECTED_CONTROL_PATHS
         }
         return self.create_repository(root, files)
+
+    def workflow_run_script(self) -> str:
+        workflow = (ROOT / ".github/workflows/factory-contracts.yml").read_text(
+            encoding="utf-8"
+        )
+        marker = "        run: |"
+        lines = workflow.splitlines()
+        start = lines.index(marker) + 1
+        return textwrap.dedent("\n".join(lines[start:])) + "\n"
+
+    def run_workflow_script(
+        self,
+        root: Path,
+        *,
+        control_base_sha: str,
+        bootstrap_base_sha: str = (
+            "34cc03bdcded112aaaa354b768aae49051443d37"
+        ),
+        bootstrap_validator_sha256: str = (
+            "8185050c43a61330a07e874f6a3c8f7102bbad452731fcf8b2c2c1b33dfac495"
+        ),
+    ) -> subprocess.CompletedProcess[str]:
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "CONTROL_BASE_SHA": control_base_sha,
+                "BOOTSTRAP_BASE_SHA": bootstrap_base_sha,
+                "BOOTSTRAP_VALIDATOR_SHA256": bootstrap_validator_sha256,
+                "PYTHONDONTWRITEBYTECODE": "1",
+            }
+        )
+        return subprocess.run(
+            ["/bin/bash", "-c", self.workflow_run_script()],
+            cwd=root,
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
 
     def test_public_safe_text_passes(self) -> None:
         VALIDATOR.validate_text("Synthetic public benchmark documentation.")
@@ -469,6 +509,166 @@ class PublicRepositorySafetyTests(unittest.TestCase):
         self.assertLess(trusted_exit, bootstrap_guard)
         self.assertLess(bootstrap_guard, candidate_execution)
         self.assertIn("--trusted-root trusted", workflow)
+
+    def test_workflow_trusted_success_never_executes_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            trusted = root / "trusted/scripts"
+            candidate = root / "candidate/scripts"
+            trusted.mkdir(parents=True)
+            candidate.mkdir(parents=True)
+            (trusted / "validate_public_repository_safety.py").write_text(
+                "raise SystemExit(0)\n",
+                encoding="utf-8",
+            )
+            (candidate / "validate_public_repository_safety.py").write_text(
+                "raise SystemExit(97)\n",
+                encoding="utf-8",
+            )
+            result = self.run_workflow_script(
+                root,
+                control_base_sha="non-bootstrap-base",
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+
+    def test_workflow_trusted_failure_does_not_fall_back_to_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            trusted = root / "trusted/scripts"
+            candidate = root / "candidate/scripts"
+            trusted.mkdir(parents=True)
+            candidate.mkdir(parents=True)
+            (trusted / "validate_public_repository_safety.py").write_text(
+                "raise SystemExit(9)\n",
+                encoding="utf-8",
+            )
+            (candidate / "validate_public_repository_safety.py").write_text(
+                "raise SystemExit(0)\n",
+                encoding="utf-8",
+            )
+            result = self.run_workflow_script(
+                root,
+                control_base_sha="non-bootstrap-base",
+            )
+            self.assertEqual(result.returncode, 9)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+
+    def test_workflow_missing_trusted_validator_denies_non_bootstrap_base(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "trusted").mkdir()
+            (root / "candidate").mkdir()
+            result = self.run_workflow_script(
+                root,
+                control_base_sha="non-bootstrap-base",
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(
+                result.stdout,
+                "FACTORY_CONTRACTS=FAIL:TRUSTED_VALIDATOR_UNAVAILABLE\n",
+            )
+            self.assertEqual(result.stderr, "")
+
+    def test_workflow_bootstrap_missing_candidate_validator_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "trusted").mkdir()
+            (root / "candidate").mkdir()
+            result = self.run_workflow_script(
+                root,
+                control_base_sha=(
+                    "34cc03bdcded112aaaa354b768aae49051443d37"
+                ),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(
+                result.stdout,
+                "FACTORY_CONTRACTS=FAIL:BOOTSTRAP_VALIDATOR_UNAVAILABLE\n",
+            )
+            self.assertEqual(result.stderr, "")
+
+    def test_workflow_bootstrap_candidate_validator_symlink_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "trusted").mkdir()
+            candidate = root / "candidate/scripts"
+            candidate.mkdir(parents=True)
+            target = root / "candidate-validator-target.py"
+            target.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            (candidate / "validate_public_repository_safety.py").symlink_to(
+                target
+            )
+            result = self.run_workflow_script(
+                root,
+                control_base_sha=(
+                    "34cc03bdcded112aaaa354b768aae49051443d37"
+                ),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(
+                result.stdout,
+                "FACTORY_CONTRACTS=FAIL:BOOTSTRAP_VALIDATOR_UNAVAILABLE\n",
+            )
+            self.assertEqual(result.stderr, "")
+
+    def test_workflow_bootstrap_candidate_validator_digest_mismatch_fails(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "trusted").mkdir()
+            candidate = root / "candidate/scripts"
+            candidate.mkdir(parents=True)
+            (candidate / "validate_public_repository_safety.py").write_text(
+                "raise SystemExit(0)\n",
+                encoding="utf-8",
+            )
+            result = self.run_workflow_script(
+                root,
+                control_base_sha=(
+                    "34cc03bdcded112aaaa354b768aae49051443d37"
+                ),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(
+                result.stdout,
+                "FACTORY_CONTRACTS=FAIL:BOOTSTRAP_VALIDATOR_MISMATCH\n",
+            )
+            self.assertEqual(result.stderr, "")
+
+    def test_workflow_bootstrap_exact_validator_executes_successfully(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "trusted").mkdir()
+            candidate = self.create_control_tree(
+                root / "candidate-build",
+                "synthetic-public",
+            )
+            validator = candidate / "scripts/validate_public_repository_safety.py"
+            validator.write_bytes(
+                (ROOT / "scripts/validate_public_repository_safety.py").read_bytes()
+            )
+            candidate.rename(root / "candidate")
+            result = self.run_workflow_script(
+                root,
+                control_base_sha=(
+                    "34cc03bdcded112aaaa354b768aae49051443d37"
+                ),
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(
+                result.stdout,
+                "PUBLIC_REPOSITORY_SAFETY=PASS\n"
+                f"TRACKED_FILE_COUNT={len(VALIDATOR.PROTECTED_CONTROL_PATHS)}\n",
+            )
+            self.assertEqual(result.stderr, "")
 
 
 if __name__ == "__main__":
