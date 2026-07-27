@@ -422,6 +422,54 @@ class PublicRepositorySafetyTests(unittest.TestCase):
         self.assertNotIn("candidate-tests:", workflow)
         self.assertNotIn("run: python3 -I candidate/", workflow)
 
+    def test_workflow_bootstrap_is_exactly_pinned_and_one_time(self) -> None:
+        workflow = (ROOT / ".github/workflows/factory-contracts.yml").read_text(
+            encoding="utf-8"
+        )
+        bootstrap_base = "34cc03bdcded112aaaa354b768aae49051443d37"
+        validator_sha256 = (
+            "8185050c43a61330a07e874f6a3c8f7102bbad452731fcf8b2c2c1b33dfac495"
+        )
+        self.assertEqual(workflow.count(bootstrap_base), 1)
+        self.assertEqual(workflow.count(validator_sha256), 1)
+        self.assertIn(
+            'if [[ "$CONTROL_BASE_SHA" != "$BOOTSTRAP_BASE_SHA" ]]',
+            workflow,
+        )
+        self.assertIn(
+            'if [[ ! -f "$candidate_validator" || -L "$candidate_validator" ]]',
+            workflow,
+        )
+        hash_check = workflow.index(
+            'actual_sha256="$(shasum -a 256 "$candidate_validator"'
+        )
+        candidate_execution = workflow.index(
+            'python3 -I "$candidate_validator"'
+        )
+        self.assertLess(hash_check, candidate_execution)
+        self.assertIn(
+            'if [[ "$actual_sha256" != "$BOOTSTRAP_VALIDATOR_SHA256" ]]',
+            workflow,
+        )
+        self.assertIn("--trusted-root candidate", workflow)
+
+    def test_workflow_prefers_trusted_validator_before_bootstrap(self) -> None:
+        workflow = (ROOT / ".github/workflows/factory-contracts.yml").read_text(
+            encoding="utf-8"
+        )
+        trusted_execution = workflow.index('python3 -I "$trusted_validator"')
+        trusted_exit = workflow.index("exit 0", trusted_execution)
+        bootstrap_guard = workflow.index(
+            'if [[ "$CONTROL_BASE_SHA" != "$BOOTSTRAP_BASE_SHA" ]]'
+        )
+        candidate_execution = workflow.index(
+            'python3 -I "$candidate_validator"'
+        )
+        self.assertLess(trusted_execution, trusted_exit)
+        self.assertLess(trusted_exit, bootstrap_guard)
+        self.assertLess(bootstrap_guard, candidate_execution)
+        self.assertIn("--trusted-root trusted", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

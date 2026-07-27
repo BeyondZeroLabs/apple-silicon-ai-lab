@@ -44,7 +44,35 @@ jobs:
       - name: Validate candidate with immutable controls
         env:
           PYTHONDONTWRITEBYTECODE: "1"
-        run: >-
-          python3 -I trusted/scripts/validate_public_repository_safety.py
-          --repo candidate
-          --trusted-root trusted
+          CONTROL_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
+          BOOTSTRAP_BASE_SHA: 34cc03bdcded112aaaa354b768aae49051443d37
+          BOOTSTRAP_VALIDATOR_SHA256: 8185050c43a61330a07e874f6a3c8f7102bbad452731fcf8b2c2c1b33dfac495
+        run: |
+          set -euo pipefail
+          trusted_validator="trusted/scripts/validate_public_repository_safety.py"
+          candidate_validator="candidate/scripts/validate_public_repository_safety.py"
+
+          if [[ -f "$trusted_validator" && ! -L "$trusted_validator" ]]; then
+            python3 -I "$trusted_validator" \
+              --repo candidate \
+              --trusted-root trusted
+            exit 0
+          fi
+
+          if [[ "$CONTROL_BASE_SHA" != "$BOOTSTRAP_BASE_SHA" ]]; then
+            echo "FACTORY_CONTRACTS=FAIL:TRUSTED_VALIDATOR_UNAVAILABLE"
+            exit 1
+          fi
+          if [[ ! -f "$candidate_validator" || -L "$candidate_validator" ]]; then
+            echo "FACTORY_CONTRACTS=FAIL:BOOTSTRAP_VALIDATOR_UNAVAILABLE"
+            exit 1
+          fi
+          actual_sha256="$(shasum -a 256 "$candidate_validator" | awk '{print $1}')"
+          if [[ "$actual_sha256" != "$BOOTSTRAP_VALIDATOR_SHA256" ]]; then
+            echo "FACTORY_CONTRACTS=FAIL:BOOTSTRAP_VALIDATOR_MISMATCH"
+            exit 1
+          fi
+
+          python3 -I "$candidate_validator" \
+            --repo candidate \
+            --trusted-root candidate
