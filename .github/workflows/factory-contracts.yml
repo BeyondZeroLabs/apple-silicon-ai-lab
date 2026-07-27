@@ -1,0 +1,78 @@
+# SECURITY ENFORCEMENT:
+# Bind this exact workflow from main through an organization ruleset
+# `required_workflows` rule. Never treat a same-named status check as sufficient.
+name: factory-contracts
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factory-contracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - name: Check out immutable controls from main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: BeyondZeroLabs/apple-silicon-ai-lab
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
+          path: trusted
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check out exact candidate without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: candidate
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate candidate with immutable controls
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          CONTROL_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
+          BOOTSTRAP_BASE_SHA: 34cc03bdcded112aaaa354b768aae49051443d37
+          BOOTSTRAP_VALIDATOR_SHA256: 8185050c43a61330a07e874f6a3c8f7102bbad452731fcf8b2c2c1b33dfac495
+        run: |
+          set -euo pipefail
+          trusted_validator="trusted/scripts/validate_public_repository_safety.py"
+          candidate_validator="candidate/scripts/validate_public_repository_safety.py"
+
+          if [[ -f "$trusted_validator" && ! -L "$trusted_validator" ]]; then
+            python3 -I "$trusted_validator" \
+              --repo candidate \
+              --trusted-root trusted
+            exit 0
+          fi
+
+          if [[ "$CONTROL_BASE_SHA" != "$BOOTSTRAP_BASE_SHA" ]]; then
+            echo "FACTORY_CONTRACTS=FAIL:TRUSTED_VALIDATOR_UNAVAILABLE"
+            exit 1
+          fi
+          if [[ ! -f "$candidate_validator" || -L "$candidate_validator" ]]; then
+            echo "FACTORY_CONTRACTS=FAIL:BOOTSTRAP_VALIDATOR_UNAVAILABLE"
+            exit 1
+          fi
+          actual_sha256="$(shasum -a 256 "$candidate_validator" | awk '{print $1}')"
+          if [[ "$actual_sha256" != "$BOOTSTRAP_VALIDATOR_SHA256" ]]; then
+            echo "FACTORY_CONTRACTS=FAIL:BOOTSTRAP_VALIDATOR_MISMATCH"
+            exit 1
+          fi
+
+          python3 -I "$candidate_validator" \
+            --repo candidate \
+            --trusted-root candidate
