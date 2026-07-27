@@ -1,0 +1,51 @@
+name: factory-contracts
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: factory-contracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - name: Check out the exact event revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate tracked-file public-safety boundary
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 scripts/validate_public_repository_safety.py
+
+      - name: Validate Software Factory contracts
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: zsh docs/software-factory/validate_package.sh
+
+      - name: Validate M5 policy cockpit
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: zsh scripts/validate_m5_policy_cockpit.sh
+
+      - name: Validate skill supply chain
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: zsh scripts/validate_skill_supply_chain.sh
+
+      - name: Test tracked-file safety validator
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 -m unittest tests/test_validate_public_repository_safety.py
