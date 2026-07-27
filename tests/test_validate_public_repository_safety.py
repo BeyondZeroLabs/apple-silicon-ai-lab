@@ -135,6 +135,7 @@ class PublicRepositorySafetyTests(unittest.TestCase):
             ("fixtures/customer-secrets.txt", "PROHIBITED_FILENAME"),
             ("fixtures/service_account.json", "PROHIBITED_FILENAME"),
             ("fixtures/private.db", "PROHIBITED_FILE_TYPE"),
+            ("fixtures/private.mdb", "PROHIBITED_FILE_TYPE"),
             ("fixtures/private.rdb", "PROHIBITED_FILE_TYPE"),
             ("fixtures/evidence.zip", "PROHIBITED_FILE_TYPE"),
             ("bad\nname.txt", "PATH_CONTROL_CHARACTER"),
@@ -144,10 +145,14 @@ class PublicRepositorySafetyTests(unittest.TestCase):
                 self.assert_path_rejected(path, code)
 
     def test_private_network_address_fails(self) -> None:
-        self.assert_text_rejected(
+        for sample in (
             "192" + ".168.22.15",
-            "PRIVATE_NETWORK_ADDRESS",
-        )
+            "fd12" + ":3456::1",
+            "fc00" + "::1",
+            "fe80" + "::1",
+        ):
+            with self.subTest(sample=sample[:4]):
+                self.assert_text_rejected(sample, "PRIVATE_NETWORK_ADDRESS")
 
     def test_binary_and_oversized_content_fail(self) -> None:
         with self.assertRaises(VALIDATOR.SafetyError) as caught:
@@ -306,6 +311,45 @@ class PublicRepositorySafetyTests(unittest.TestCase):
             with self.assertRaises(VALIDATOR.SafetyError) as caught:
                 VALIDATOR.validate_repository(link)
             self.assertEqual(str(caught.exception), "REPOSITORY_UNAVAILABLE")
+
+    def test_git_directory_redirection_file_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repository = self.create_repository(
+                root,
+                {"public.txt": "Public synthetic documentation.\n"},
+            )
+            git_directory = repository / ".git"
+            redirected = root / "redirected-git"
+            git_directory.rename(redirected)
+            git_directory.write_text(
+                f"gitdir: {redirected}\n",
+                encoding="utf-8",
+            )
+            with self.assertRaises(VALIDATOR.SafetyError) as caught:
+                VALIDATOR.validate_repository(repository)
+            self.assertEqual(
+                str(caught.exception),
+                "GIT_DIRECTORY_UNAVAILABLE",
+            )
+
+    def test_git_directory_symlink_fails_without_following_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repository = self.create_repository(
+                root,
+                {"public.txt": "Public synthetic documentation.\n"},
+            )
+            git_directory = repository / ".git"
+            redirected = root / "redirected-git"
+            git_directory.rename(redirected)
+            git_directory.symlink_to(redirected, target_is_directory=True)
+            with self.assertRaises(VALIDATOR.SafetyError) as caught:
+                VALIDATOR.validate_repository(repository)
+            self.assertEqual(
+                str(caught.exception),
+                "GIT_DIRECTORY_UNAVAILABLE",
+            )
 
     def test_repository_replacement_does_not_redirect_open_descriptor(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

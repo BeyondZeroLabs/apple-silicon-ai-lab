@@ -94,6 +94,7 @@ PROHIBITED_SUFFIXES = {
     ".kdbx",
     ".key",
     ".keychain-db",
+    ".mdb",
     ".mobileprovision",
     ".ovpn",
     ".p12",
@@ -171,7 +172,9 @@ CONTENT_PATTERNS = (
         "PRIVATE_NETWORK_ADDRESS",
         re.compile(
             r"(?<!\d)(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|"
-            r"172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?!\d)"
+            r"172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?!\d)|"
+            r"(?i:(?<![0-9a-f:])(?:f[cd][0-9a-f]{0,2}|"
+            r"fe[89ab][0-9a-f]):[0-9a-f:]+(?![0-9a-f:]))"
         ),
     ),
 )
@@ -507,4 +510,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-    ".mdb",
