@@ -53,21 +53,43 @@ PROHIBITED_COMPONENTS = {
     "secrets",
 }
 PROHIBITED_FILENAMES = {
+    ".dockerconfigjson",
     ".env",
+    ".envrc",
+    ".git-credentials",
     ".netrc",
     ".npmrc",
     ".pypirc",
+    "application_default_credentials.json",
+    "auth.json",
     "authorized_keys",
+    "cookies.json",
     "credentials",
     "credentials.json",
     "id_dsa",
     "id_ecdsa",
     "id_ed25519",
     "id_rsa",
+    "login data",
+    "oauth.json",
+    "service-account.json",
+    "service_account.json",
+    "token.json",
 }
+PROHIBITED_FILENAME_TOKENS = re.compile(
+    r"(?:^|[._-])(?:credential|credentials|private[_-]?key|"
+    r"secret|secrets|token|tokens)(?:[._-]|$)",
+    re.IGNORECASE,
+)
 PROHIBITED_SUFFIXES = {
     ".7z",
+    ".accdb",
+    ".bak",
+    ".backup",
+    ".db",
+    ".db3",
     ".dmg",
+    ".dump",
     ".gz",
     ".kdbx",
     ".key",
@@ -80,6 +102,8 @@ PROHIBITED_SUFFIXES = {
     ".pkg",
     ".ppk",
     ".rar",
+    ".realm",
+    ".rdb",
     ".sqlite",
     ".sqlite3",
     ".tar",
@@ -131,9 +155,31 @@ CONTENT_PATTERNS = (
     ),
     (
         "PERSONAL_IDENTIFIER_SHAPE",
-        re.compile(r"(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)"),
+        re.compile(
+            r"(?i)(?:"
+            r"(?<!\d)\d{3}-\d{2}-\d{4}(?!\d)|"
+            r"(?<![A-Z0-9._%+/:~-])[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|"
+            r"(?<!\d)(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?"
+            r"[-.\s]\d{3}[-.\s]\d{4}(?!\d)|"
+            r"(?<![0-9A-F])(?:[0-9A-F]{2}:){5}[0-9A-F]{2}(?![0-9A-F])|"
+            r"(?<![0-9A-F])[0-9A-F]{8}-[0-9A-F]{4}-[1-5][0-9A-F]{3}-"
+            r"[89AB][0-9A-F]{3}-[0-9A-F]{12}(?![0-9A-F])"
+            r")"
+        ),
+    ),
+    (
+        "PRIVATE_NETWORK_ADDRESS",
+        re.compile(
+            r"(?<!\d)(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|"
+            r"172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?!\d)"
+        ),
     ),
 )
+
+
+class ContentFreeArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        raise SafetyError("INVALID_ARGUMENTS")
 
 
 def fail(condition: bool, code: str) -> None:
@@ -157,7 +203,9 @@ def validate_relative_path(raw_path: str) -> PurePosixPath:
     )
     filename = lowered_parts[-1]
     fail(
-        filename not in PROHIBITED_FILENAMES and not filename.startswith(".env."),
+        filename not in PROHIBITED_FILENAMES
+        and not filename.startswith(".env.")
+        and PROHIBITED_FILENAME_TOKENS.search(filename) is None,
         "PROHIBITED_FILENAME",
     )
     fail(path.suffix.casefold() not in PROHIBITED_SUFFIXES, "PROHIBITED_FILE_TYPE")
@@ -179,12 +227,23 @@ def validate_bytes(payload: bytes) -> None:
     validate_text(text)
 
 
-def bounded_git_index(repo: Path) -> bytes:
+def bounded_git_index(repository_descriptor: int) -> bytes:
+    try:
+        git_descriptor = os.open(
+            ".git",
+            directory_open_flags(),
+            dir_fd=repository_descriptor,
+        )
+    except OSError as exc:
+        raise SafetyError("GIT_DIRECTORY_UNAVAILABLE") from exc
+    os.close(git_descriptor)
     try:
         process = subprocess.Popen(
-            ["git", "-C", str(repo), "ls-files", "-s", "-z"],
+            ["git", "ls-files", "-s", "-z"],
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
+            pass_fds=(repository_descriptor,),
+            preexec_fn=lambda: os.fchdir(repository_descriptor),
         )
     except OSError as exc:
         raise SafetyError("GIT_INDEX_UNAVAILABLE") from exc
@@ -227,8 +286,8 @@ def bounded_git_index(repo: Path) -> bytes:
         process.stdout.close()
 
 
-def tracked_entries(repo: Path) -> list[tuple[str, str]]:
-    output = bounded_git_index(repo)
+def tracked_entries(repository_descriptor: int) -> list[tuple[str, str]]:
+    output = bounded_git_index(repository_descriptor)
     entries: list[tuple[str, str]] = []
     for record in output.split(b"\0"):
         if not record:
@@ -270,10 +329,13 @@ def file_open_flags() -> int:
 
 def open_repository(repo: Path) -> int:
     fail(repo.is_absolute(), "REPOSITORY_NOT_ABSOLUTE")
+    descriptor = -1
     try:
         descriptor = os.open(repo, directory_open_flags())
         info = os.fstat(descriptor)
     except OSError as exc:
+        if descriptor >= 0:
+            os.close(descriptor)
         raise SafetyError("REPOSITORY_UNAVAILABLE") from exc
     if not stat.S_ISDIR(info.st_mode):
         os.close(descriptor)
@@ -352,11 +414,11 @@ def read_regular_file(
 
 
 def validate_repository(repo: Path) -> int:
-    entries = tracked_entries(repo)
     repository_descriptor = open_repository(repo)
     total_bytes = 0
     seen: set[str] = set()
     try:
+        entries = tracked_entries(repository_descriptor)
         for mode, raw_path in entries:
             fail(mode in ALLOWED_GIT_MODES, "UNSAFE_GIT_MODE")
             fail(raw_path not in seen, "DUPLICATE_TRACKED_PATH")
@@ -378,7 +440,19 @@ def validate_control_files(candidate_repo: Path, trusted_root: Path) -> None:
     candidate_descriptor = open_repository(candidate_repo)
     trusted_descriptor = open_repository(trusted_root)
     try:
-        for raw_path in PROTECTED_CONTROL_PATHS:
+        candidate_workflows = {
+            path
+            for _mode, path in tracked_entries(candidate_descriptor)
+            if path.startswith(".github/workflows/")
+        }
+        trusted_workflows = {
+            path
+            for _mode, path in tracked_entries(trusted_descriptor)
+            if path.startswith(".github/workflows/")
+        }
+        fail(candidate_workflows == trusted_workflows, "WORKFLOW_SET_CHANGED")
+        control_paths = set(PROTECTED_CONTROL_PATHS) | trusted_workflows
+        for raw_path in sorted(control_paths):
             relative = validate_relative_path(raw_path)
             try:
                 candidate_payload = read_regular_file(
@@ -400,14 +474,10 @@ def validate_control_files(candidate_repo: Path, trusted_root: Path) -> None:
 
 
 def parse_arguments(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = ContentFreeArgumentParser(add_help=False)
     parser.add_argument("--repo", default=os.getcwd())
     parser.add_argument("--trusted-root")
-    try:
-        arguments = parser.parse_args(argv)
-    except SystemExit as exc:
-        raise SafetyError("INVALID_ARGUMENTS") from exc
-    return arguments
+    return parser.parse_args(argv)
 
 
 def absolute_without_resolution(raw_path: str) -> Path:
@@ -437,3 +507,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+    ".mdb",

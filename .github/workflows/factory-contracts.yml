@@ -1,8 +1,11 @@
+# SECURITY ENFORCEMENT:
+# Bind this exact workflow from main through an organization ruleset
+# `required_workflows` rule. Never treat a same-named status check as sufficient.
 name: factory-contracts
 
 on:
   pull_request:
-  pull_request_target:
+  merge_group:
   push:
     branches:
       - main
@@ -16,79 +19,32 @@ concurrency:
 
 jobs:
   validate:
-    if: github.event_name == 'pull_request_target' || github.event_name == 'push'
     name: validate
     runs-on: macos-14
     timeout-minutes: 10
     steps:
-      - name: Check out trusted controls
+      - name: Check out immutable controls from main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          repository: BeyondZeroLabs/apple-silicon-ai-lab
+          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.sha }}
           path: trusted
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Check out untrusted candidate without credentials
-        if: github.event_name == 'pull_request_target'
+      - name: Check out exact candidate without credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: candidate
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Validate candidate using immutable base controls
-        if: github.event_name == 'pull_request_target'
+      - name: Validate candidate with immutable controls
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: >-
           python3 -I trusted/scripts/validate_public_repository_safety.py
           --repo candidate
           --trusted-root trusted
-
-      - name: Validate merged main
-        if: github.event_name == 'push'
-        env:
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: >-
-          python3 -I trusted/scripts/validate_public_repository_safety.py
-          --repo trusted
-
-  candidate-tests:
-    if: github.event_name == 'pull_request'
-    name: candidate-tests
-    runs-on: macos-14
-    timeout-minutes: 10
-    steps:
-      - name: Check out candidate without credentials
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Run candidate public-safety tests
-        env:
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: python3 -I tests/test_validate_public_repository_safety.py
-
-      - name: Run candidate public-safety validator
-        env:
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: python3 -I scripts/validate_public_repository_safety.py
-
-      - name: Run candidate Software Factory contract validator
-        env:
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: zsh docs/software-factory/validate_package.sh
-
-      - name: Run candidate M5 policy cockpit validator
-        env:
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: zsh scripts/validate_m5_policy_cockpit.sh
-
-      - name: Run candidate skill supply-chain validator
-        env:
-          PYTHONDONTWRITEBYTECODE: "1"
-        run: zsh scripts/validate_skill_supply_chain.sh

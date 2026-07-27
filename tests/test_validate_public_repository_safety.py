@@ -114,20 +114,40 @@ class PublicRepositorySafetyTests(unittest.TestCase):
                 self.assert_text_rejected(sample, "PRIVATE_CHAT_LINK")
 
     def test_personal_identifier_shape_fails(self) -> None:
-        self.assert_text_rejected("123-" + "45-" + "6789", "PERSONAL_IDENTIFIER_SHAPE")
+        for sample in (
+            "123-" + "45-" + "6789",
+            "person" + "@" + "example.com",
+            "202" + "-555-" + "0147",
+            "AA:BB:CC" + ":DD:EE:FF",
+            "123e4567-" + "e89b-12d3-a456-426614174000",
+        ):
+            with self.subTest(sample=sample[:3]):
+                self.assert_text_rejected(sample, "PERSONAL_IDENTIFIER_SHAPE")
 
     def test_sensitive_paths_fail(self) -> None:
         cases = (
             ("agent_bridge/runtime.json", "PROHIBITED_PATH"),
             ("CASE_BRAIN/index.json", "PROHIBITED_PATH"),
             (".env.production", "PROHIBITED_FILENAME"),
+            ("fixtures/.git-credentials", "PROHIBITED_FILENAME"),
+            ("fixtures/auth.json", "PROHIBITED_FILENAME"),
             ("fixtures/id_ed25519", "PROHIBITED_FILENAME"),
+            ("fixtures/customer-secrets.txt", "PROHIBITED_FILENAME"),
+            ("fixtures/service_account.json", "PROHIBITED_FILENAME"),
+            ("fixtures/private.db", "PROHIBITED_FILE_TYPE"),
+            ("fixtures/private.rdb", "PROHIBITED_FILE_TYPE"),
             ("fixtures/evidence.zip", "PROHIBITED_FILE_TYPE"),
             ("bad\nname.txt", "PATH_CONTROL_CHARACTER"),
         )
         for path, code in cases:
             with self.subTest(path=path):
                 self.assert_path_rejected(path, code)
+
+    def test_private_network_address_fails(self) -> None:
+        self.assert_text_rejected(
+            "192" + ".168.22.15",
+            "PRIVATE_NETWORK_ADDRESS",
+        )
 
     def test_binary_and_oversized_content_fail(self) -> None:
         with self.assertRaises(VALIDATOR.SafetyError) as caught:
@@ -233,9 +253,13 @@ class PublicRepositorySafetyTests(unittest.TestCase):
                 Path(temporary),
                 {"public.txt": "Public synthetic documentation.\n"},
             )
-            with mock.patch.object(VALIDATOR, "MAX_GIT_OUTPUT_BYTES", 8):
-                with self.assertRaises(VALIDATOR.SafetyError) as caught:
-                    VALIDATOR.tracked_entries(repository)
+            descriptor = VALIDATOR.open_repository(repository)
+            try:
+                with mock.patch.object(VALIDATOR, "MAX_GIT_OUTPUT_BYTES", 8):
+                    with self.assertRaises(VALIDATOR.SafetyError) as caught:
+                        VALIDATOR.tracked_entries(descriptor)
+            finally:
+                os.close(descriptor)
             self.assertEqual(str(caught.exception), "GIT_INDEX_TOO_LARGE")
 
     def test_control_files_must_match_trusted_base(self) -> None:
@@ -249,6 +273,66 @@ class PublicRepositorySafetyTests(unittest.TestCase):
             with self.assertRaises(VALIDATOR.SafetyError) as caught:
                 VALIDATOR.validate_control_files(candidate, trusted)
             self.assertEqual(str(caught.exception), "CONTROL_FILE_CHANGED")
+
+    def test_added_workflow_cannot_spoof_required_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            trusted = self.create_control_tree(root / "trusted-root", "stable")
+            candidate = self.create_control_tree(root / "candidate-root", "stable")
+            injected = candidate / ".github/workflows/spoof.yml"
+            injected.write_text(
+                "name: factory-contracts\njobs:\n  validate:\n",
+                encoding="utf-8",
+            )
+            subprocess.run(
+                ["git", "-C", str(candidate), "add", "."],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            with self.assertRaises(VALIDATOR.SafetyError) as caught:
+                VALIDATOR.validate_control_files(candidate, trusted)
+            self.assertEqual(str(caught.exception), "WORKFLOW_SET_CHANGED")
+
+    def test_repository_symlink_fails_without_following_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repository = self.create_repository(
+                root,
+                {"public.txt": "Public synthetic documentation.\n"},
+            )
+            link = root / "repo-link"
+            link.symlink_to(repository, target_is_directory=True)
+            with self.assertRaises(VALIDATOR.SafetyError) as caught:
+                VALIDATOR.validate_repository(link)
+            self.assertEqual(str(caught.exception), "REPOSITORY_UNAVAILABLE")
+
+    def test_repository_replacement_does_not_redirect_open_descriptor(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repository = self.create_repository(
+                root,
+                {"public.txt": "original-public\n"},
+            )
+            descriptor = VALIDATOR.open_repository(repository)
+            moved = root / "original-repo"
+            repository.rename(moved)
+            replacement = self.create_repository(
+                root,
+                {"malicious.txt": "replacement\n"},
+            )
+            self.assertEqual(replacement, repository)
+            try:
+                entries = VALIDATOR.tracked_entries(descriptor)
+                self.assertEqual(entries[0][1], "public.txt")
+                payload = VALIDATOR.read_regular_file(
+                    descriptor,
+                    VALIDATOR.validate_relative_path("public.txt"),
+                    VALIDATOR.MAX_TOTAL_BYTES,
+                )
+                self.assertEqual(payload, b"original-public\n")
+            finally:
+                os.close(descriptor)
 
     def test_unexpected_error_is_content_free(self) -> None:
         output = io.StringIO()
@@ -266,16 +350,33 @@ class PublicRepositorySafetyTests(unittest.TestCase):
             "PUBLIC_REPOSITORY_SAFETY=FAIL:INTERNAL_ERROR\n",
         )
 
+    def test_invalid_arguments_are_content_free(self) -> None:
+        output = io.StringIO()
+        error = io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(error):
+            self.assertEqual(
+                VALIDATOR.main(["--unknown", "/" + "Users" + "/private"]),
+                1,
+            )
+        self.assertEqual(
+            output.getvalue(),
+            "PUBLIC_REPOSITORY_SAFETY=FAIL:INVALID_ARGUMENTS\n",
+        )
+        self.assertEqual(error.getvalue(), "")
+
     def test_workflow_uses_base_control_plane(self) -> None:
         workflow = (ROOT / ".github/workflows/factory-contracts.yml").read_text(
             encoding="utf-8"
         )
-        self.assertIn("pull_request_target:", workflow)
+        self.assertIn("`required_workflows` rule", workflow)
         self.assertIn("--trusted-root trusted", workflow)
         self.assertIn("persist-credentials: false", workflow)
         self.assertIn("permissions:\n  contents: read", workflow)
+        self.assertIn("repository: BeyondZeroLabs/apple-silicon-ai-lab", workflow)
+        self.assertNotIn("pull_request_target:", workflow)
         self.assertNotIn("secrets.", workflow)
-        self.assertNotIn("pull_request_target'\n        run:", workflow)
+        self.assertNotIn("candidate-tests:", workflow)
+        self.assertNotIn("run: python3 -I candidate/", workflow)
 
 
 if __name__ == "__main__":
