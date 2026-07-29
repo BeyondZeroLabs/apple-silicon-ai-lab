@@ -1,0 +1,331 @@
+{
+  "authority": {
+    "goal_budget_reference": "docs/software-factory/goal-contract.yaml",
+    "operational_reference": "docs/software-factory/implementation-roadmap.md"
+  },
+  "comprehension_budget": {
+    "exhaustion_behavior": "PAUSED",
+    "machines_must_declare_budget_compliance": true,
+    "optional_fields": [
+      "maximum_cost_usd",
+      "maximum_energy_proxy",
+      "maximum_input_tokens",
+      "maximum_output_tokens"
+    ],
+    "reference": "docs/software-factory/goal-contract.yaml",
+    "required_fields": [
+      "maximum_attempts",
+      "maximum_concurrency",
+      "wall_clock_seconds"
+    ]
+  },
+  "fleet_ceilings": {
+    "comprehension_budget_reference": "goal-contract.yaml:budget",
+    "maximum_active_coordinator_leases_per_repository": 1,
+    "maximum_concurrent_goals_per_repository": 1,
+    "model_endpoint_binding": "loopback_only",
+    "relay_allowed_nodes": [
+      "mac-studio-m4-max"
+    ]
+  },
+  "global_prohibited_authorities": [
+    "automatic_merge",
+    "coordinator_lease_without_human_approval",
+    "credential_export",
+    "fleet_service_install",
+    "model_download",
+    "network_service_bind",
+    "protected_storage_write",
+    "remote_exposure"
+  ],
+  "id": "bz-fleet-readiness-contract",
+  "machines": [
+    {
+      "authority_ceiling": {
+        "coordinator_lease": false,
+        "independent_merge": false,
+        "model_promotion": false,
+        "network_bind": false,
+        "protected_storage_write": false,
+        "service_install": false,
+        "standing_coordination": false
+      },
+      "deployment_state": "review_surface",
+      "id": "ipad",
+      "mobile_limitations": {
+        "attach_to_mac_hosted_sessions_only": true,
+        "autonomous_authority": false,
+        "code_execution": false,
+        "merge_authority": false,
+        "persistent_runtime": false,
+        "promotion_authority": false
+      },
+      "openclaw_active": null,
+      "primary_role": "review_surface",
+      "readiness_checklist": [
+        "authenticated_ssh_attachment_verified",
+        "dashboard_review_workflow_verified",
+        "no_autonomous_authority_acknowledged",
+        "no_persistent_runtime_acknowledged"
+      ],
+      "role_exclusions": [
+        "autonomous_authority",
+        "code_execution",
+        "coordinator_lease",
+        "merge_authority",
+        "model_promotion",
+        "network_service_bind",
+        "persistent_runtime",
+        "protected_storage_write",
+        "service_install"
+      ]
+    },
+    {
+      "authority_ceiling": {
+        "coordinator_lease": false,
+        "independent_merge": false,
+        "model_promotion": false,
+        "network_bind": false,
+        "protected_storage_write": false,
+        "service_install": false,
+        "standing_coordination": false
+      },
+      "deployment_state": "human_presence_surface",
+      "id": "iphone",
+      "mobile_limitations": {
+        "attach_to_mac_hosted_sessions_only": true,
+        "autonomous_authority": false,
+        "code_execution": false,
+        "merge_authority": false,
+        "persistent_runtime": false,
+        "promotion_authority": false
+      },
+      "openclaw_active": null,
+      "primary_role": "human_presence_surface",
+      "readiness_checklist": [
+        "alert_delivery_verified",
+        "emergency_stop_acknowledgement_verified",
+        "mfa_passkey_workflow_verified",
+        "no_code_or_merge_authority_acknowledged"
+      ],
+      "role_exclusions": [
+        "autonomous_authority",
+        "code_execution",
+        "coordinator_lease",
+        "merge_authority",
+        "model_promotion",
+        "network_service_bind",
+        "persistent_runtime",
+        "promotion_authority",
+        "protected_storage_write",
+        "service_install"
+      ]
+    },
+    {
+      "authority_ceiling": {
+        "coordinator_lease": false,
+        "independent_merge": false,
+        "model_promotion": false,
+        "network_bind": false,
+        "protected_storage_write": false,
+        "service_install": false,
+        "standing_coordination": false
+      },
+      "deployment_state": "proposed_infrastructure_node",
+      "id": "mac-mini-m4",
+      "mobile_limitations": null,
+      "openclaw_active": false,
+      "primary_role": "infrastructure_watchdog",
+      "readiness_checklist": [
+        "lease_watchdog_isolated_from_osiris",
+        "no_competing_repo_coordinator",
+        "openclaw_inactive_acknowledged",
+        "watchdog_survives_osiris_stop_rehearsed"
+      ],
+      "role_exclusions": [
+        "automatic_merge",
+        "competing_repo_coordinator",
+        "fleet_service_install",
+        "large_model_service",
+        "network_service_bind",
+        "openclaw_active_gateway",
+        "protected_storage_write",
+        "standing_coordination"
+      ]
+    },
+    {
+      "authority_ceiling": {
+        "coordinator_lease": true,
+        "independent_merge": false,
+        "model_promotion": false,
+        "network_bind": false,
+        "protected_storage_write": false,
+        "service_install": false,
+        "standing_coordination": true
+      },
+      "deployment_state": "proposed_production_node",
+      "id": "mac-studio-m4-max",
+      "mobile_limitations": null,
+      "openclaw_active": null,
+      "primary_role": "standing_coordinator",
+      "readiness_checklist": [
+        "dual_harness_regression_matrix_passed",
+        "lease_acquire_heartbeat_expiry_rehearsed",
+        "loopback_model_endpoint_verified",
+        "relay_candidate_only_acknowledged",
+        "rollback_rehearsed"
+      ],
+      "role_exclusions": [
+        "automatic_merge",
+        "fleet_service_install",
+        "independent_merge",
+        "independent_model_promotion",
+        "network_service_bind",
+        "protected_storage_write",
+        "remote_unauthenticated_exposure"
+      ]
+    },
+    {
+      "authority_ceiling": {
+        "coordinator_lease": false,
+        "independent_merge": false,
+        "model_promotion": false,
+        "network_bind": false,
+        "protected_storage_write": false,
+        "service_install": false,
+        "standing_coordination": false
+      },
+      "deployment_state": "recovery_only_candidate",
+      "id": "mbp-intel-2019",
+      "mobile_limitations": null,
+      "openclaw_active": null,
+      "primary_role": "recovery_terminal",
+      "readiness_checklist": [
+        "archive_verification_commands_documented",
+        "credential_free_operation_verified",
+        "no_modern_local_llm_service",
+        "no_production_coordination",
+        "read_only_git_bundle_restore_rehearsed"
+      ],
+      "role_exclusions": [
+        "automatic_merge",
+        "coordinator_lease",
+        "credential_storage",
+        "fleet_service_install",
+        "modern_local_llm_service",
+        "network_service_bind",
+        "production_coordination",
+        "protected_storage_write",
+        "standing_credentials"
+      ]
+    },
+    {
+      "authority_ceiling": {
+        "coordinator_lease": true,
+        "independent_merge": false,
+        "model_promotion": false,
+        "network_bind": false,
+        "protected_storage_write": false,
+        "service_install": false,
+        "standing_coordination": false
+      },
+      "deployment_state": "proposed_mobile_failover_node",
+      "id": "mbp-m4-pro",
+      "mobile_limitations": null,
+      "openclaw_active": null,
+      "primary_role": "mobile_executor_failover",
+      "readiness_checklist": [
+        "ac_power_required_for_failover_acknowledged",
+        "explicit_lease_failover_rehearsed",
+        "no_roaming_battery_coordination_acknowledged",
+        "rollback_to_studio_rehearsed"
+      ],
+      "role_exclusions": [
+        "automatic_merge",
+        "coordinator_lease_on_battery",
+        "coordinator_lease_while_roaming",
+        "fleet_service_install",
+        "independent_merge",
+        "network_service_bind",
+        "normal_standing_coordination",
+        "protected_storage_write"
+      ]
+    },
+    {
+      "authority_ceiling": {
+        "coordinator_lease": false,
+        "independent_merge": false,
+        "model_promotion": false,
+        "network_bind": false,
+        "protected_storage_write": false,
+        "service_install": false,
+        "standing_coordination": false
+      },
+      "deployment_state": "controlled_interactive_pilot_only",
+      "id": "mbp-m5-max",
+      "mobile_limitations": null,
+      "openclaw_active": null,
+      "primary_role": "human_policy_cockpit",
+      "readiness_checklist": [
+        "contracts_accepted",
+        "independent_review_recorded",
+        "interactive_pilot_only_acknowledged",
+        "no_unattended_coordinator"
+      ],
+      "role_exclusions": [
+        "automatic_merge",
+        "coordinator_lease",
+        "fleet_service_install",
+        "model_or_policy_promotion",
+        "network_service_bind",
+        "protected_storage_write",
+        "standing_production_coordinator",
+        "unattended_production_coordination"
+      ]
+    },
+    {
+      "authority_ceiling": {
+        "coordinator_lease": false,
+        "independent_merge": false,
+        "model_promotion": false,
+        "network_bind": false,
+        "protected_storage_write": false,
+        "service_install": false,
+        "standing_coordination": false
+      },
+      "deployment_state": "notification_surface",
+      "id": "watch",
+      "mobile_limitations": {
+        "attach_to_mac_hosted_sessions_only": true,
+        "autonomous_authority": false,
+        "code_execution": false,
+        "merge_authority": false,
+        "persistent_runtime": false,
+        "promotion_authority": false,
+        "protected_action_authorization": false
+      },
+      "openclaw_active": null,
+      "primary_role": "notification_surface",
+      "readiness_checklist": [
+        "escalation_notification_verified",
+        "no_protected_action_authorization_acknowledged",
+        "notification_only_acknowledged"
+      ],
+      "role_exclusions": [
+        "autonomous_authority",
+        "code_execution",
+        "coordinator_lease",
+        "merge_authority",
+        "model_promotion",
+        "network_service_bind",
+        "persistent_runtime",
+        "protected_action_authorization",
+        "protected_storage_write",
+        "service_install"
+      ]
+    }
+  ],
+  "policy_revision": "2561e4bbbf7a21f9989d11df0e29b54ffae7d266",
+  "schema_version": "1.0",
+  "status": "DESIGN_ONLY_INSTALL_FREE"
+}
