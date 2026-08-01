@@ -36,7 +36,8 @@ This repository package is **documentation and procedure only**. It does not con
 | [PILOT_TEST_PLAN.md](PILOT_TEST_PLAN.md) | Synthetic pilot procedure |
 | [PILOT_RESULTS.md](PILOT_RESULTS.md) | Pilot execution record (fill after local run) |
 | [ROLLBACK.md](ROLLBACK.md) | Disable and unwind steps |
-| [receipts/](receipts/) | Environment, version, permission, and test receipts |
+| [BUZZ_DISCOVERY_REPORT.md](BUZZ_DISCOVERY_REPORT.md) | Phase 1 + 2A discovery inventory |
+| [PHASE_2B_EXECUTION_CHECKLIST.md](PHASE_2B_EXECUTION_CHECKLIST.md) | Channel and agent setup steps (approved) |
 
 ## Default deny
 

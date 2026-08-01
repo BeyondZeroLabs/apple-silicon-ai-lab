@@ -10,7 +10,7 @@ truth_classification: PUBLIC_SAFE
 
 | Component | Documented version | Source | Verified locally |
 |---|---|---|---|
-| Buzz Desktop | v0.5.0+ | https://github.com/block/buzz/releases/tag/v0.5.0 | **No** |
+| Buzz Desktop on M5 | _pending About dialog_ | `UNKNOWN` | Screenshot does not show version |
 | buzz-acp | Matches Buzz repo release | `crates/buzz-acp/README.md` | **No** |
 | ACP spec | Current | https://agentclientprotocol.com/ | N/A |
 | codex-acp | `@agentclientprotocol/codex-acp` | buzz-acp README | **No** |

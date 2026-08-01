@@ -1,6 +1,6 @@
 ---
 id: bz-buzz-receipt-environment-v1
-status: CLOUD_DISCOVERY_PASS
+status: PHASE_2A_PARTIAL
 truth_classification: PUBLIC_SAFE
 ---
 
@@ -11,21 +11,33 @@ truth_classification: PUBLIC_SAFE
 | Field | Value |
 |---|---|
 | Assessment date | 2026-08-01 |
-| Assessor | Cursor Cloud Agent |
+| Assessor | Cursor Cloud Agent + Bryant UI screenshot |
 | Repository | BeyondZeroLabs/apple-silicon-ai-lab |
 | Branch | cursor/buzz-workspace-setup-6b67 |
 | Workspace path | `/workspace` |
 
-## Buzz runtime
+## Buzz runtime — cloud VM
 
-| Check | Result |
-|---|---|
-| `buzz` CLI installed | **No** |
-| Buzz Desktop installed | **No** |
-| `cursor-agent` on PATH | **Not verified** (not in cloud PATH) |
-| `buzz-acp` available | **No** |
-| Relay URL configured | **No** |
-| BeyondZero community accessible | **No** |
+| Check | Result | Classification |
+|---|---|---|
+| `buzz` CLI installed | **No** | `LOCALLY_VERIFIED` |
+| Buzz Desktop installed | **No** | `LOCALLY_VERIFIED` |
+| `cursor-agent` on PATH | **No** | `LOCALLY_VERIFIED` |
+| `buzz-acp` available | **No** | `LOCALLY_VERIFIED` |
+| Relay URL configured | **No** | `LOCALLY_VERIFIED` |
+
+## Buzz runtime — M5 (Bryant)
+
+| Field | Value | Classification |
+|---|---|---|
+| Buzz Desktop running | **Yes** | `REPORTED_BY_UI` |
+| Host OS | macOS | `REPORTED_BY_UI` |
+| Community display name | `beyondzero-labs` | `REPORTED_BY_UI` |
+| Human identity | Bryant (owner) | `REPORTED_BY_UI` |
+| Buzz Desktop version | _pending About dialog_ | `UNKNOWN` |
+| Relay URL | _pending Settings → Communities_ | `UNKNOWN` |
+| Hosted vs self-hosted | _pending relay URL_ | `UNKNOWN` |
+| OS keyring backend | macOS Keychain (expected per Buzz SECURITY.md) | `INFERENCE` |
 
 ## Cloud agent constraints
 

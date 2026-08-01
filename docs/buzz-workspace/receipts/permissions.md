@@ -1,28 +1,40 @@
 ---
 id: bz-buzz-receipt-permissions-v1
-status: TEMPLATE
+status: PHASE_2A_PARTIAL
 truth_classification: PUBLIC_SAFE
 ---
 
 # Permissions receipt
 
-## Purpose
+## Observed channels (2026-08-01 — UI screenshot)
 
-Record channel memberships, agent pubkeys, harness commands, and `respondTo` policies after local Buzz setup.
+| Channel | Visibility | Bryant member | Notes | Classification |
+|---|---|---|---|---|
+| `#general` | Regular | Yes | Created by Bryant; no agent messages yet | `REPORTED_BY_UI` |
+| `#Welcome` | Private (padlock) | Yes | Default onboarding channel | `REPORTED_BY_UI` |
+| `#welcome-everyone` | Regular | Yes | Default onboarding channel | `REPORTED_BY_UI` |
 
-**Status:** Template only — populate after Bryant creates channels and agents.
+## Recommended channels — not yet created
 
----
+| Channel | Status |
+|---|---|
+| `#dev-command` | Not observed |
+| `#agent-coordination` | Not observed |
+| `#review-verification` | Not observed |
+| `#decisions-receipts` | Not observed |
+| `#local-ai-lab` | Not observed |
+| `#bz-university` | Not observed |
+| `#case-brain-private` | Deferred per security gate |
 
 ## Human identity
 
-| Field | Value |
-|---|---|
-| Name | Bryant Crowe |
-| Role | Owner |
-| Pubkey (hex) | _fill after setup_ |
-| Auth method | Nostr key / OS keyring |
-| MFA | _unknown — record if available_ |
+| Field | Value | Classification |
+|---|---|---|
+| Name | Bryant Crowe | `REPORTED_BY_UI` |
+| Role | Owner | `INFERENCE` |
+| Display in community | Bryant (bee emoji), `beyondzero-labs` | `REPORTED_BY_UI` |
+| Pubkey (hex) | _pending export from Buzz settings_ | `UNKNOWN` |
+| MFA | _unknown_ | `UNKNOWN` |
 
 ---
 
