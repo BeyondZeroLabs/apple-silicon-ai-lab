@@ -38,6 +38,7 @@ This repository package is **documentation and procedure only**. It does not con
 | [ROLLBACK.md](ROLLBACK.md) | Disable and unwind steps |
 | [BUZZ_DISCOVERY_REPORT.md](BUZZ_DISCOVERY_REPORT.md) | Phase 1 + 2A discovery inventory |
 | [PHASE_2B_EXECUTION_CHECKLIST.md](PHASE_2B_EXECUTION_CHECKLIST.md) | Channel and agent setup steps (approved) |
+| [receipts/](receipts/) | Environment, version, permission, and test receipts |
 
 ## Default deny
 
