@@ -9,3 +9,7 @@ Scripts belong here only after they are reviewed for public safety. Do not add s
 ## Skill supply-chain gate
 
 `validate_skill_registry.py` validates the canonical design-only registry with Python's standard library. `validate_skill_supply_chain.sh` runs the validator and its negative security tests. Neither script downloads, installs, imports, or enables a skill.
+
+## Prime Agent (Ollama) setup
+
+`setup_prime_agent_ollama_m5.sh` configures `~/.prime/agent` for local Ollama, installs a `prime-agent` symlink (not Homebrew `pi`), and runs an offline smoke test. See [docs/prime-agent-ollama-m5-setup.md](../docs/prime-agent-ollama-m5-setup.md).

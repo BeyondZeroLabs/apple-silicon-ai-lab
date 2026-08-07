@@ -1,0 +1,4 @@
+{
+  "defaultProvider": "ollama",
+  "defaultModel": "qwen3.5:35b-a3b-coding-nvfp4"
+}
