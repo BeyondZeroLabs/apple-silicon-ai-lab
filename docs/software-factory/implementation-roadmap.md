@@ -140,6 +140,7 @@ Only the human owner can move a goal into `APPROVED`, accept a material risk exc
 ### Phase 6 — recovery and human surfaces
 
 - Keep Intel credential-free; verify read-only Git bundles/archive restoration and documented recovery commands.
+- Public-safe host-guarded Ubuntu bootstrap for the Intel T2 node lives in `examples/neuromancer-bootstrap`; on-host inventory and authenticated developer tools remain host-local human gates.
 - Validate iPad authenticated attachment and fallback review workflow.
 - Validate iPhone alert and emergency-stop delivery end-to-end; Watch remains notification-only.
 
