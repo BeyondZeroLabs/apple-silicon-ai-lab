@@ -37,3 +37,10 @@ Apple Silicon AI Lab is a public Beyond Zero Labs repository for Apple Silicon A
 ## Commit Gate
 
 Before any commit or push, check for secret-shaped strings, `.env` files, key files, private paths, private project references, unexpected binaries, and non-synthetic content.
+
+## Cursor Cloud specific instructions
+
+- The workspace is standard-library Python 3.10+ with `zsh` and `jq`. Do not install Ollama, model weights, or other AI runtimes.
+- Nothing starts on boot. There is no database, dev server, or package lockfile.
+- From the repository root, the checks are `./scripts/validate_m5_policy_cockpit.sh`, `./scripts/validate_skill_supply_chain.sh`, `docs/software-factory/validate_package.sh`, and `python3 -I scripts/validate_public_repository_safety.py --repo . --trusted-root .`.
+- The core action is `python3 scripts/m5_policy_cockpit.py check examples/m5-policy-cockpit/public-safe-approval-request.json`. A passing check prints `APPROVED_FOR_HUMAN_ACTION` and does not execute the requested action. Receipts written with `record --human-confirm` stay in ignored `.factory-state/` and are not authoritative.
